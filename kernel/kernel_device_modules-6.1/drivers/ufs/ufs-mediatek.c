@@ -37,6 +37,8 @@
 #include "ufshcd-crypto.h"
 #include "ufshcd-pltfrm.h"
 #include "ufshcd-priv.h"
+#include "../../../block/blk-mq.h"
+#include <linux/blk-mq.h>
 
 /* MediaTek UFS facilities */
 #include "ufs-mediatek-btag.h"
@@ -50,7 +52,9 @@
 #include "ufs-mediatek-mimic.h"
 #include <../../../fs/proc/internal.h>
 #include "ufs-mediatek.h"
-
+#include "../../../block/blk-mq.h"
+#include <linux/blk-mq.h>
+#include <linux/blk_types.h>
 /*google patch Random W/R performance improvement*/
 #include <linux/irq.h>
 
@@ -188,6 +192,15 @@ static void ufs_vh_update_sdev(void *data, struct scsi_device *sdev)
 	struct ufsf_feature *ufsf = ufs_mtk_get_ufsf(hba);
 
 	ufsf_slave_configure(ufsf, sdev);
+}
+#endif
+
+#if defined(CONFIG_UFSFEATURE)
+static void ufs_samsung_register_hooks(void)
+{
+	register_trace_android_vh_ufs_prepare_command(ufs_vh_prep_fn, NULL);
+	register_trace_android_vh_ufs_compl_command(ufs_vh_compl_command, NULL);
+	register_trace_android_vh_ufs_update_sdev(ufs_vh_update_sdev, NULL);
 }
 #endif
 
@@ -1141,10 +1154,19 @@ static void ufs_mtk_trace_vh_send_command(void *data, struct ufs_hba *hba, struc
 static void ufs_mtk_trace_vh_compl_command(void *data, struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
 	struct scsi_cmnd *cmd = lrbp->cmd;
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
 	if (!cmd)
 		return;
 
+	if (host->caps & UFS_MTK_CAP_LOCAL_PROCESS) {
+		if (cmd->cmnd[0] == READ_10) {
+			struct request *rq = blk_mq_rq_from_pdu(cmd);
+			if (rq && rq->mq_ctx->cpu < 6)
+				/* set the REQ_POLLED in completion hook, otherwise will conflict in ufshcd_poll */
+				rq->cmd_flags |= REQ_POLLED;
+		}
+	}
 #if IS_ENABLED(CONFIG_RPMB)
 	ufs_rpmb_vh_compl_command(hba, lrbp);
 #endif
@@ -3349,14 +3371,18 @@ static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba)
 
 	if (is_mcq_enabled(hba)) {
 		/* Use none scheduler for mcq */
-		if (hba->host->nr_hw_queues > 1) {
+		/* if (hba->host->nr_hw_queues > 1) {
 			hba->host->tag_set.flags |=
 				BLK_MQ_F_NO_SCHED_BY_DEFAULT;
-		}
+		} */
 
 		/* set affinity */
 		ufs_mtk_mcq_set_irq_affinity(hba);
 	}
+
+	/* oplus change */
+	hba->host->tag_set.flags |=
+		BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 
 	if (mid == UFS_VENDOR_SAMSUNG) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TACTIVATE), 6);
@@ -3396,12 +3422,16 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 	struct cpumask dstp;
+	struct device_node *np = hba->dev->of_node;
 
 	ufshcd_fixup_dev_quirks(hba, ufs_mtk_dev_fixups);
 
 	if (STR_PRFX_EQUAL("H9HQ15AFAMBDAR", dev_info->model))
 		host->caps |= UFS_MTK_CAP_BROKEN_VCC |
 			UFS_MTK_CAP_ALLOW_VCCQX_LPM;
+
+	if (STR_PRFX_EQUAL("KLUFG4LHGC", dev_info->model))
+		host->caps |= UFS_MTK_CAP_LOCAL_PROCESS;
 
 	if (ufs_mtk_is_broken_vcc(hba) && hba->vreg_info.vcc &&
 	    (hba->dev_quirks & UFS_DEVICE_QUIRK_DELAY_AFTER_LPM)) {
@@ -3412,6 +3442,11 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 		 */
 		hba->dev_quirks &= ~(UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM |
 			UFS_DEVICE_QUIRK_DELAY_AFTER_LPM);
+	}
+
+	if (of_property_read_bool(np, "mediatek,ufs-vcc-always-on")) {
+		hba->rpm_lvl = UFS_PM_LVL_1;
+		hba->spm_lvl = UFS_PM_LVL_1;
 	}
 
 	ufs_mtk_vreg_fix_vcc(hba);
@@ -3428,10 +3463,12 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 		hba->spm_lvl = UFS_PM_LVL_1;
 		/* set affinity to cpu6,7 */
 		cpumask_clear(&dstp);
-		cpumask_set_cpu(7, &dstp);
 		cpumask_set_cpu(6, &dstp);
 		irq_modify_status(hba->irq, 0, IRQ_NO_BALANCING);
 		irq_set_affinity_hint(hba->irq, &dstp);
+	} else {
+		/* set affinity to cpu3 */
+		irq_set_affinity_hint(hba->irq, get_cpu_mask(3));
 	}
 
 #if defined(CONFIG_UFSFEATURE)
@@ -3440,6 +3477,8 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 		if (hba->caps & UFSHCD_CAP_WB_EN)
 			hba->caps &= ~UFSHCD_CAP_WB_EN;
 		ufsf_set_init_state(hba);
+		/* Register hook for Samsung feature */
+		ufs_samsung_register_hooks();
 	}
 #endif
 }
@@ -3907,15 +3946,6 @@ static const struct ufs_hba_variant_ops ufs_hba_mtk_vops = {
 #endif
 };
 
-#if defined(CONFIG_UFSFEATURE)
-static void ufs_samsung_register_hooks(void)
-{
-	register_trace_android_vh_ufs_prepare_command(ufs_vh_prep_fn, NULL);
-	register_trace_android_vh_ufs_compl_command(ufs_vh_compl_command, NULL);
-	register_trace_android_vh_ufs_update_sdev(ufs_vh_update_sdev, NULL);
-}
-#endif
-
 /**
  * ufs_mtk_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
@@ -3986,10 +4016,6 @@ skip_phy:
 	if (!hba)
 		goto out;
 
-	/* set affinity to cpu3 */
-	if (hba->irq)
-		irq_set_affinity_hint(hba->irq, get_cpu_mask(3));
-
 	if ((phy_node) && (phy_dev)) {
 		host = ufshcd_get_variant(hba);
 		host->phy_dev = phy_dev;
@@ -4011,12 +4037,6 @@ skip_phy:
 		regulator_set_mode((hba->vreg_info.vccq2)->reg,
 				REGULATOR_MODE_NORMAL);
 
-#if defined(CONFIG_UFSFEATURE)
-	/* Register hook for Samsung feature */
-	if (hba->dev_quirks & UFS_DEVICE_QUIRK_SAMSUNG_QLC) {
-		ufs_samsung_register_hooks();
-	}
-#endif
 out:
 	of_node_put(phy_node);
 	of_node_put(reset_node);

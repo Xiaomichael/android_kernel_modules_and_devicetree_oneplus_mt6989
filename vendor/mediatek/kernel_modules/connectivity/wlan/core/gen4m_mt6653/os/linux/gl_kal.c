@@ -3479,8 +3479,10 @@ void kalIndicateStatusAndComplete(struct GLUE_INFO *prGlueInfo,
 
 #if CFG_ENABLE_WIFI_DIRECT
 		/* Check SAP channel */
-		p2pFuncSwitchSapChannel(prAdapter,
-			P2P_DEFAULT_SCENARIO);
+		ccmChannelSwitchProducerByNetType(prAdapter,
+						  prBssInfo,
+						  __func__,
+						  CCM_SAP_BIT);
 #endif
 
 		if (prBssDesc) {

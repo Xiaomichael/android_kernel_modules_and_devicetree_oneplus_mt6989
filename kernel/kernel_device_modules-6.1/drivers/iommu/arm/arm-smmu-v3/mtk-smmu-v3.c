@@ -1647,6 +1647,16 @@ static irqreturn_t mtk_smmu_sec_irq_process(int irq, void *dev)
 	return IRQ_NONE;
 }
 
+static bool smmu_ras_irq_detected(unsigned int irq_sta)
+{
+	if ((irq_sta & STA_TCU_RAS_CRI) &&
+	    (irq_sta & STA_TCU_RAS_ERI) &&
+	    (irq_sta & STA_TCU_RAS_FHI))
+		return true;
+
+	return false;
+}
+
 static int mtk_smmu_irq_handler(int irq, void *dev)
 {
 	struct arm_smmu_device *smmu = dev;
@@ -1654,6 +1664,7 @@ static int mtk_smmu_irq_handler(int irq, void *dev)
 	u32 gerror, gerrorn, active;
 	struct smmuv3_pmu_device *pmu_device;
 	unsigned long flags;
+	unsigned int irq_sta;
 
 	gerror = readl_relaxed(smmu->base + ARM_SMMU_GERROR);
 	gerrorn = readl_relaxed(smmu->base + ARM_SMMU_GERRORN);
@@ -1670,7 +1681,12 @@ static int mtk_smmu_irq_handler(int irq, void *dev)
 			__func__, irq, gerror, gerrorn, active);
 	}
 
-	smmuwp_process_intr(smmu);
+	irq_sta = smmuwp_process_intr(smmu);
+	if (smmu_ras_irq_detected(irq_sta)) {
+		atomic_inc(&data->ras_detected);
+		if(atomic_read(&data->ras_detected) < 0)
+			atomic_set(&data->ras_detected, 0);
+	}
 
 	mtk_smmu_irq_record(data);
 
@@ -2554,6 +2570,7 @@ static int mtk_smmu_data_init(struct mtk_smmu_data *data)
 	mtk_smmu_irq_pause_timer_init(data);
 
 	data->hw_init_flag = 0;
+	atomic_set(&data->ras_detected, 0);
 
 	return 0;
 }

@@ -156,6 +156,16 @@ uint32_t
 p2pFuncIsPendingTxMgmtNeedWait(struct ADAPTER *prAdapter, uint8_t ucRoleIndex,
 	enum ENUM_P2P_MGMT_TX_TYPE eP2pMgmtTxType);
 
+enum ENUM_P2P_CONNECT_STATE
+p2pFuncTagMgmtFrame(struct MSDU_INFO *prMgmtTxMsdu,
+		uint64_t u8Cookie);
+
+u_int8_t
+p2pFuncGetBssIdxByCookie(struct ADAPTER *prAdapter,
+	uint8_t ucRoleIndex,
+	struct P2P_PENDING_MGMT_INFO **prPendingMgmtInfoValid,
+	uint64_t u8cookie);
+
 void p2pFuncAcquireCh(struct ADAPTER *prAdapter,
 		uint8_t ucBssIdx,
 		struct P2P_CHNL_REQ_INFO *prChnlReqInfo);
@@ -666,6 +676,9 @@ p2pFuncNeedWaitRsp(struct ADAPTER *prAdapter,
 
 u_int8_t
 p2pFuncNeedForceSleep(struct ADAPTER *prAdapter);
+
+u_int8_t
+p2pFuncIsSapGoCsa(struct ADAPTER *prAdapter, uint8_t ucRoleIdx);
 
 void
 p2pFunClearAllTxReq(struct ADAPTER *prAdapter,

@@ -19,7 +19,8 @@ struct P2P_CCM_CSA_ENTRY {
 
 static void __ccmChannelSwitchProducer(struct ADAPTER *prAdapter,
 				       struct BSS_INFO *prTargetBss,
-				       const char *pucSrcFunc);
+				       const char *pucSrcFunc,
+				       uint8_t ucNetTypeBits);
 
 static u_int8_t ccmCheckAndPrepareChannelSwitch(struct ADAPTER *prAdapter,
 			    struct BSS_INFO *prBssInfo,
@@ -239,13 +240,58 @@ void ccmChannelSwitchProducer(struct ADAPTER *prAdapter,
 			LINK_FOR_EACH_ENTRY(bss, &prMldBss->rBssList,
 					    rLinkEntryMld, struct BSS_INFO)
 				__ccmChannelSwitchProducer(prAdapter, bss,
-							   pucSrcFunc);
+							   pucSrcFunc,
+							   CCM_ALL_NET_BITS);
 		} else
 			__ccmChannelSwitchProducer(prAdapter, prTargetBss,
-						   pucSrcFunc);
+						   pucSrcFunc,
+						   CCM_ALL_NET_BITS);
 	} else if (IS_BSS_APGO(prTargetBss))
 #endif /* CFG_SUPPORT_802_11BE_MLO == 1 */
-		__ccmChannelSwitchProducer(prAdapter, prTargetBss, pucSrcFunc);
+		__ccmChannelSwitchProducer(prAdapter, prTargetBss, pucSrcFunc,
+					   CCM_ALL_NET_BITS);
+}
+
+void ccmChannelSwitchProducerByNetType(struct ADAPTER *prAdapter,
+			      struct BSS_INFO *prTargetBss,
+			      const char *pucSrcFunc,
+			      uint8_t ucNetTypeBits)
+{
+	if (!prAdapter->fgIsP2PRegistered)
+		return;
+
+	if (!prTargetBss) {
+		DBGLOG(CCM, INFO, "null target Bss\n");
+		return;
+	}
+
+	if (prAdapter->fgIsCcmPending) {
+		DBGLOG(CCM, INFO, "skip CCM due to pending");
+		return;
+	}
+
+#if (CFG_SUPPORT_802_11BE_MLO == 1)
+	if (IS_BSS_GC(prTargetBss) || IS_BSS_AIS(prTargetBss)) {
+		struct BSS_INFO *bss;
+		struct MLD_BSS_INFO *prMldBss = mldBssGetByBss(prAdapter,
+							       prTargetBss);
+
+		if (prMldBss) {
+			/* MLO GC/STA only ch abort once */
+			LINK_FOR_EACH_ENTRY(bss, &prMldBss->rBssList,
+					    rLinkEntryMld, struct BSS_INFO) {
+				__ccmChannelSwitchProducer(prAdapter, bss,
+							   pucSrcFunc,
+							   ucNetTypeBits);
+			}
+		} else
+			__ccmChannelSwitchProducer(prAdapter, prTargetBss,
+						   pucSrcFunc,
+						   ucNetTypeBits);
+	} else if (IS_BSS_APGO(prTargetBss) || IS_BSS_NAN(prTargetBss))
+#endif /* CFG_SUPPORT_802_11BE_MLO == 1 */
+		__ccmChannelSwitchProducer(prAdapter, prTargetBss, pucSrcFunc,
+					   ucNetTypeBits);
 }
 
 void ccmChannelSwitchProducerDfs(struct ADAPTER *prAdapter,
@@ -513,7 +559,8 @@ void ccmChannelSwitchConsumer(struct ADAPTER *prAdapter)
 /*----------------------------------------------------------------------------*/
 static void __ccmChannelSwitchProducer(struct ADAPTER *prAdapter,
 				struct BSS_INFO *prTargetBss,
-				const char *pucSrcFunc)
+				const char *pucSrcFunc,
+				uint8_t ucNetTypeBits)
 {
 	struct BSS_INFO *bss;
 	uint8_t i;
@@ -554,6 +601,17 @@ static void __ccmChannelSwitchProducer(struct ADAPTER *prAdapter,
 			    || p2pFuncIsAPMode(
 					prAdapter->rWifiVar.prP2PConnSettings[
 							bss->u4PrivateData]))
+				continue;
+
+			/* check if net type specified */
+			if (IS_BSS_APGO(bss) &&
+			    !p2pFuncIsAPMode(
+				prAdapter->rWifiVar.prP2PConnSettings[
+					bss->u4PrivateData]) &&
+			    !(ucNetTypeBits & CCM_GO_BIT))
+				continue;
+			else if (IS_BSS_GC(bss) &&
+				 !(ucNetTypeBits & CCM_GC_BIT))
 				continue;
 
 			/* skip target bss itself */
@@ -602,6 +660,12 @@ static void __ccmChannelSwitchProducer(struct ADAPTER *prAdapter,
 		if (!IS_BSS_APGO(bss) || !IS_BSS_ALIVE(prAdapter, bss)
 		    || !p2pFuncIsAPMode(prAdapter->rWifiVar.prP2PConnSettings[
 					bss->u4PrivateData]))
+			continue;
+
+		if (IS_BSS_APGO(bss) &&
+		    p2pFuncIsAPMode(prAdapter->rWifiVar.prP2PConnSettings[
+					bss->u4PrivateData]) &&
+		    !(ucNetTypeBits & CCM_SAP_BIT))
 			continue;
 
 		/* skip target bss itself */

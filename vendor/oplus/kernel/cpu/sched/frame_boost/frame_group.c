@@ -2437,7 +2437,8 @@ bool set_frame_group_task_to_perfer_cpu(struct task_struct *p, int *target_cpu)
 	bool walk_next_cls = false;
 	struct oplus_sched_cluster *cluster = NULL;
 	cpumask_t search_cpus = CPU_MASK_NONE;
-	unsigned long spare_cap = 0, max_spare_cap = 0;
+	long spare_cap = 0;
+	long max_spare_cap = -1;
 	int max_spare_cap_cpu = -1, backup_cpu = -1;
 	struct frame_group *grp = NULL;
 	struct oplus_task_struct *ots = get_oplus_task_struct(p);

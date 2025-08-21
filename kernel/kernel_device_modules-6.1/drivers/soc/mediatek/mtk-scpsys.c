@@ -654,6 +654,9 @@ static int scpsys_power_on(struct generic_pm_domain *genpd)
 	if (ret < 0)
 		goto err_pwr_ack;
 
+	if (MTK_SCPD_CAPS(scpd, MTK_SCPD_ISO_DELAY))
+		udelay(50);
+
 	if (MTK_SCPD_CAPS(scpd, MTK_SCPD_PEXTP_PHY_RTFF) && scpd->rtff_flag) {
 		val |= PWR_RTFF_CLK_DIS;
 		writel(val, ctl_addr);

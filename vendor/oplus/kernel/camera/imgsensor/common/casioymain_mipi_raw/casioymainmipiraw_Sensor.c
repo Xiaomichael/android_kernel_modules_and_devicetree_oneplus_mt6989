@@ -290,7 +290,7 @@ static struct SET_PD_BLOCK_INFO_T imgsensor_partial_pd_info = {
 		.i4VCFeature = VC_PDAF_STATS_NE_PIX_1,
 		.i4PDPattern = 3,
 		.i4PDRepetition = 4,
-		.i4PDOrder = {1, 0, 0, 1}, /*R = 1, L = 0*/
+		.i4PDOrder = {0, 1, 1, 0}, /*R = 1, L = 0*/
 	},
 };
 
@@ -591,6 +591,16 @@ static struct mtk_mbus_frame_desc_entry frame_desc_cus11[] = {
 			.hsize = 4096,
 			.vsize = 3072,
 			.user_data_desc = VC_STAGGER_NE,
+		},
+	},
+	{
+		.bus.csi2 = {
+			.channel = 0,
+			.data_type = 0x30,
+			.hsize = 2048,
+			.vsize = 1536,
+			.user_data_desc = VC_PDAF_STATS_NE_PIX_1,
+			.dt_remap_to_type = MTK_MBUS_FRAME_DESC_REMAP_TO_RAW10,
 		},
 	},
 };
@@ -1378,7 +1388,7 @@ static struct subdrv_mode_struct mode_struct[] = {
 			.sensor_scenario_usage = INSENSORZOOM_MASK,
 			.equivalent_fps = 24,
 		},
-		.sensor_output_dataformat = SENSOR_OUTPUT_FORMAT_RAW_4CELL_B,
+		//.sensor_output_dataformat = SENSOR_OUTPUT_FORMAT_RAW_4CELL_B,
 	},
 };
 

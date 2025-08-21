@@ -1210,7 +1210,7 @@ int pd_send_bist_mode2(struct pd_port *pd_port)
 	pd_notify_tcp_event_buf_reset(pd_port, TCP_DPM_RET_DROP_SEND_BIST);
 
 #if CONFIG_USB_PD_TRANSMIT_BIST2
-	TCPC_DBG("BIST_MODE_2\n");
+	PE_DBG("BIST_MODE_2\n");
 	ret = tcpci_transmit(tcpc, TCPC_TX_BIST_MODE_2, 0, NULL);
 #else
 	ret = tcpci_set_bist_carrier_mode(tcpc, 1 << 2);

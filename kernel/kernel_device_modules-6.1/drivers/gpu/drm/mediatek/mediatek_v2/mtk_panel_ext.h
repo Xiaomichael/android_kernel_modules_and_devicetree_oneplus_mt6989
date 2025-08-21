@@ -17,7 +17,11 @@
 #endif
 
 #define RT_MAX_NUM 10
+#ifdef OPLUS_FEATURE_DISPLAY
+#define ESD_CHECK_NUM 4
+#else
 #define ESD_CHECK_NUM 3
+#endif
 #define MAX_TX_CMD_NUM 20
 #define MAX_RX_CMD_NUM 20
 #define READ_DDIC_SLOT_NUM 8
@@ -420,6 +424,8 @@ struct vdo_aod_params {
 	unsigned int porch_change_flag;  //bit0:VFP, bit1:HFP
 	unsigned int dst_hfp;
 	unsigned int dst_vfp;
+	int mode_idx;
+	bool change_mmclk;
 	struct vdo_aod_cmds vdo_aod_cmd_table[MAX_DYN_CMD_NUM];
 };
 
@@ -536,6 +542,7 @@ struct mtk_panel_params {
 	unsigned int change_fps_by_vfp_send_cmd;
 	unsigned int change_fps_by_vfp_send_cmd_need_delay;
 	unsigned int esd_te_check_gpio;
+	unsigned int esd_check_repeatedly_cnt;
 #endif /* OPLUS_FEATURE_DISPLAY */
 	struct mtk_ddic_dsi_cmd send_cmd_to_ddic;
 	unsigned int cust_esd_check;
@@ -814,6 +821,7 @@ struct mtk_panel_funcs {
 	int (*panel_poweron)(struct drm_panel *panel);
 	int (*panel_reset)(struct drm_panel *panel);
 	int (*esd_read_gpio)(struct drm_panel *panel);
+	int (*esd_check_multipage_pre)(void *dsi, dcs_write_gce cb, void *handle, int i);
 	int (*oplus_set_power)(uint32_t voltage_id, uint32_t voltage_value);
 	int (*set_seed)(void *dsi_drv, dcs_write_gce cb, void *handle, unsigned int mode);
 	int (*oplus_update_power_value)(uint32_t voltage_id);

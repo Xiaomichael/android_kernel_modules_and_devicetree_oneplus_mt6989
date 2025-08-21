@@ -42,6 +42,7 @@
 #include <oplus_impedance_check.h>
 #include <plat_ufcs/plat_ufcs_notify.h>
 #include <oplus_chg_cpa.h>
+#include <oplus_chg_monitor.h>
 
 #define BCC_TYPE_IS_SVOOC 1
 #define BCC_TYPE_IS_VOOC 0
@@ -57,6 +58,7 @@
 #define OPLUS_PD_5V 5000
 #define OPLUS_PD_9V 9000
 #define ICL_IBUS_ABS_THRESHOLD_MA	600
+#define IBATT_FULL_CURR_DEFAULT	    1000
 
 struct battery_chg_dev *g_bcdev = NULL;
 static int oplus_get_vchg_trig_status(void);
@@ -71,8 +73,15 @@ static int oplus_chg_8350_get_charger_type(struct oplus_chg_ic_dev *ic_dev, int 
 #endif /*OPLUS_FEATURE_CHG_BASIC*/
 static int oplus_chg_8350_get_icl(struct oplus_chg_ic_dev *ic_dev, int *icl_ma);
 static int oplus_chg_set_input_current_with_no_aicl(struct battery_chg_dev *bcdev, int current_ma);
+static bool oplus_vooc_get_fastchg_ing(struct battery_chg_dev *bcdev);
+static bool is_common_topic_available(struct battery_chg_dev *bcdev);
+static bool oplus_get_ufcs_charging(struct battery_chg_dev *bcdev);
 static int oplus_chg_8350_get_input_curr(struct oplus_chg_ic_dev *ic_dev, int *curr_ma);
 static int oplus_chg_8350_aicl_rerun(struct oplus_chg_ic_dev *ic_dev);
+__maybe_unused static bool oplus_get_pps_charging(struct battery_chg_dev *bcdev);
+static bool oplus_get_oplus_ufcs(struct battery_chg_dev *bcdev);
+static unsigned int oplus_update_batt_full_para(struct battery_chg_dev *bcdev);
+__maybe_unused static bool oplus_get_oplus_pps(struct battery_chg_dev *bcdev);
 static int oplus_get_pps_info_from_adsp(struct oplus_chg_ic_dev *ic_dev, u32 *pdo, int num);
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
@@ -246,6 +255,37 @@ static const char * const qc_power_supply_usb_type_text[] = {
 };
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
+static bool is_err_topic_available(struct battery_chg_dev *chip)
+{
+	if (!chip->err_topic)
+		chip->err_topic = oplus_mms_get_by_name("error");
+	return !!chip->err_topic;
+}
+
+static void oplus_publish_close_cp_item_work(struct work_struct *work)
+{
+	struct battery_chg_dev *chip = container_of(work, struct battery_chg_dev, publish_close_cp_item_work.work);
+	struct mms_msg *msg;
+	int rc;
+
+	if (!is_err_topic_available(chip)) {
+		chg_err("error topic not found\n");
+		return;
+	}
+
+	msg = oplus_mms_alloc_int_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM, ERR_ITEM_CLOSE_CP, 1);
+	if (msg == NULL) {
+		chg_err("alloc close cp msg error\n");
+		return;
+	}
+
+	rc = oplus_mms_publish_msg(chip->err_topic, msg);
+	if (rc < 0) {
+		chg_err("publish close cp msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
+}
+
 static int oem_battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 	int len)
 {
@@ -288,15 +328,27 @@ static int oem_read_buffer(struct battery_chg_dev *bcdev)
 	return oem_battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
 }
 
-void oplus_get_props_from_adsp_by_buffer(void)
+static void oplus_adsp_voocphy_set_full_para_qbg(struct battery_chg_dev *bcdev, u32 fcss_status);
+static void oplus_get_props_from_adsp_by_buffer(void)
 {
 	struct battery_chg_dev *bcdev = g_bcdev;
+	static u32 pre_fcss_status = 0;
+	u32 fcss_status = 0;
 
 	if (!bcdev) {
 		chg_err("bcdev is null, oplus_get_batt_argv_buffer\n");
 		return;
 	}
 	oem_read_buffer(bcdev);
+
+	if (bcdev->batt_full_method_new) {
+		fcss_status = oplus_update_batt_full_para(bcdev);
+		if(pre_fcss_status != fcss_status) {
+			oplus_adsp_voocphy_set_full_para_qbg(bcdev, fcss_status);
+			pre_fcss_status = fcss_status;
+			chg_info("method %d, fcss_status is %d\n", bcdev->batt_full_method_new, fcss_status);
+		}
+	}
 }
 
 static void handle_oem_read_buffer(struct battery_chg_dev *bcdev,
@@ -841,6 +893,18 @@ static bool is_common_topic_available(struct battery_chg_dev *bcdev)
 		bcdev->common_topic = oplus_mms_get_by_name("common");
 
 	return !!bcdev->common_topic;
+}
+
+static void oplus_adsp_voocphy_set_full_para_qbg(struct battery_chg_dev *bcdev, u32 fcss_status)
+{
+	int rc = 0;
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+
+	rc = write_property_id(bcdev, pst, BATT_BAT_FULL_CURR_SET, fcss_status);
+	if (rc) {
+		chg_err("set current level fail, rc=%d\n", rc);
+		return;
+	}
 }
 
 void oplus_chg_set_curr_level_to_voocphy(struct battery_chg_dev *bcdev)
@@ -2225,6 +2289,7 @@ static void handle_notification(struct battery_chg_dev *bcdev, void *data,
 		} else {
 			chg_info("the current protol is %d.", protocol);
 		}
+		schedule_delayed_work(&bcdev->publish_close_cp_item_work, 0);
 		break;
 	case BC_UFCS_PDO_READY:
 		bcdev->ufcs_pdo_ready = true;
@@ -4005,6 +4070,30 @@ static int oplus_chg_parse_custom_dt(struct battery_chg_dev *bcdev)
 	}
 
 	bcdev->ufcs_run_check_support = of_property_read_bool(node, "oplus,ufcs_run_check_support");
+
+	bcdev->batt_full_method_new = of_property_read_bool(node, "oplus,batt_full_method_new");
+	chg_info("get batt_full_method_new %d\n", bcdev->batt_full_method_new);
+
+	if (bcdev->batt_full_method_new) {
+		rc = read_signed_data_from_node(node, "oplus,batt_full_temp",
+						(u32 *)bcdev->batt_full_temp, QBG_TEMP_MAX);
+		if (rc < 0) {
+			chg_err("get oplus,batt_full_temp property error, use old method, rc=%d\n",
+				rc);
+			bcdev->batt_full_method_new = false;
+		}
+	}
+
+	if (bcdev->batt_full_method_new) {
+		rc = read_unsigned_data_from_node(node, "oplus,batt_full_para",
+						(u32 *)bcdev->batt_full_para,
+						CHARGING_TYPE_MAX * QBG_TEMP_MAX);
+		if (rc < 0) {
+			chg_err("get oplus,batt_full_para property error, use old method, rc=%d\n",
+				rc);
+			bcdev->batt_full_method_new = false;
+		}
+	}
 	return 0;
 }
 #endif /*OPLUS_FEATURE_CHG_BASIC*/
@@ -4367,6 +4456,152 @@ static void oplus_plugin_irq_work(struct work_struct *work)
  * battery gauge ops *
  **********************************************************************/
 #ifdef OPLUS_FEATURE_CHG_BASIC
+__maybe_unused static bool oplus_get_pps_charging(struct battery_chg_dev *bcdev)
+{
+	bool pps_charging = false;
+	union mms_msg_data data = {0};
+
+	if (!bcdev)
+		return false;
+
+	if (!bcdev->pps_topic)
+		bcdev->pps_topic = oplus_mms_get_by_name("pps");
+
+	if (bcdev->pps_topic) {
+		oplus_mms_get_item_data(bcdev->pps_topic,
+					PPS_ITEM_CHARGING, &data, false);
+		pps_charging = !!data.intval;
+	}
+	return pps_charging;
+}
+
+__maybe_unused static bool oplus_get_oplus_pps(struct battery_chg_dev *bcdev)
+{
+	bool oplus_pps = false;
+	union mms_msg_data data = {0};
+
+	if (!bcdev)
+		return false;
+
+	if (!bcdev->pps_topic)
+		bcdev->pps_topic = oplus_mms_get_by_name("pps");
+
+	if (bcdev->pps_topic) {
+		oplus_mms_get_item_data(bcdev->pps_topic,
+					PPS_ITEM_OPLUS_ADAPTER, &data, false);
+		oplus_pps = !!data.intval;
+	}
+	return oplus_pps;
+}
+
+static bool oplus_get_ufcs_charging(struct battery_chg_dev *bcdev)
+{
+	bool ufcs_charging = false;
+	union mms_msg_data data = {0};
+
+	if (!bcdev)
+		return false;
+
+	if (!bcdev->ufcs_topic)
+		bcdev->ufcs_topic = oplus_mms_get_by_name("ufcs");
+
+	if (bcdev->ufcs_topic) {
+		oplus_mms_get_item_data(bcdev->ufcs_topic,
+					UFCS_ITEM_CHARGING, &data, false);
+		ufcs_charging = !!data.intval;
+	}
+	return ufcs_charging;
+}
+
+static bool oplus_get_oplus_ufcs(struct battery_chg_dev *bcdev)
+{
+	bool oplus_ufcs = false;
+	union mms_msg_data data = {0};
+
+	if (!bcdev)
+		return false;
+
+	if (!bcdev->ufcs_topic)
+		bcdev->ufcs_topic = oplus_mms_get_by_name("ufcs");
+
+	if (bcdev->ufcs_topic) {
+		oplus_mms_get_item_data(bcdev->ufcs_topic,
+					UFCS_ITEM_OPLUS_ADAPTER, &data, false);
+		oplus_ufcs = !!data.intval;
+	}
+	return oplus_ufcs;
+}
+
+static unsigned int oplus_update_batt_full_para(struct battery_chg_dev *bcdev)
+{
+	unsigned int ibatt_full_cur = 0;
+	union mms_msg_data data = { 0 };
+	int charging_status = 0;
+	int temp_region = 0;
+	static unsigned int pre_ibatt_full_cur = IBATT_FULL_CURR_DEFAULT;
+	int temp = 250;
+	unsigned int ffc_status = 0;
+
+	if (is_common_topic_available(bcdev)) {
+		oplus_mms_get_item_data(bcdev->common_topic, COMM_ITEM_FFC_STATUS,
+				&data, false);
+		ffc_status = data.intval;
+
+		oplus_mms_get_item_data(bcdev->common_topic, COMM_ITEM_SHELL_TEMP,
+				&data, false);
+		temp = data.intval;
+	} else {
+		chg_err("common topic not found, return\n");
+		goto exit;
+	}
+
+	if (temp < bcdev->batt_full_temp[QBG_TEMP_COOL])    /* - 12 */
+		temp_region = QBG_TEMP_COLD;
+	else if (temp < bcdev->batt_full_temp[QBG_TEMP_NORMAL])   /* 12 - 21 */
+		temp_region = QBG_TEMP_COOL;
+	else if (temp < bcdev->batt_full_temp[QBG_TEMP_WARM])  /* 21 - 44 */
+		temp_region = QBG_TEMP_NORMAL;
+	else  /* 44 -  */
+		temp_region = QBG_TEMP_WARM;
+
+	if (oplus_vooc_get_fastchg_ing(bcdev)) {
+		charging_status = CHARGING_TYPE_VOOC_SVOOC;
+	} else if (oplus_get_ufcs_charging(bcdev)) {
+		if (oplus_get_oplus_ufcs(bcdev))
+			charging_status = CHARGING_TYPE_OPLUS_UFCS;
+		else
+			charging_status = CHARGING_TYPE_THIRD_UFCS;
+	} else if (oplus_get_pps_charging(bcdev)) {
+		if (oplus_get_oplus_pps(bcdev))
+			charging_status = CHARGING_TYPE_OPLUS_PPS;
+		else
+			charging_status = CHARGING_TYPE_THIRD_PPS;
+	} else {
+		if (ffc_status == FFC_WAIT || ffc_status == FFC_FAST)
+			charging_status = CHARGING_TYPE_FFC;
+		else
+			charging_status = CHARGING_TYPE_UNKNOW;
+	}
+
+	if (charging_status < CHARGING_TYPE_MAX && temp_region < QBG_TEMP_MAX)
+		ibatt_full_cur = bcdev->batt_full_para[charging_status][temp_region];
+	else
+		goto exit;
+
+	if (pre_ibatt_full_cur == ibatt_full_cur)
+		goto exit;
+
+	chg_info("pre_ibatt_full_cur = %d, ibatt_full_cur = %d, charging_status = %d, temp = %d, temp_region = %d\n",
+		pre_ibatt_full_cur, ibatt_full_cur, charging_status, temp, temp_region);
+
+	pre_ibatt_full_cur = ibatt_full_cur;
+
+	return ibatt_full_cur;
+
+exit:
+	return pre_ibatt_full_cur;
+}
+
 __maybe_unused static int fg_sm8350_get_battery_mvolts(void)
 {
 	int rc = 0;
@@ -7104,6 +7339,31 @@ static int oplus_set_read_mode(struct oplus_chg_ic_dev *ic_dev, int value)
 	return 0;
 }
 
+static int oplus_fg_get_dec_fg_type(struct oplus_chg_ic_dev *ic_dev, int *fg_type)
+{
+	if (ic_dev == NULL || !fg_type) {
+		chg_err("oplus_chg_ic_dev or deep_dischg_count is NULL");
+		return -ENODEV;
+	}
+/* TODO DEC_CV_PACK_SOH/DEC_CV_MB_TI */
+
+	*fg_type = DEC_CV_QCOM_FG;
+
+	return 0;
+}
+
+static int oplus_fg_get_dec_cv_soh(struct oplus_chg_ic_dev *ic_dev, int *dec_soh)
+{
+	if (ic_dev == NULL || !dec_soh) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+
+	*dec_soh = fg_sm8350_get_battery_cc();
+
+	return 0;
+}
+
 static void *oplus_chg_8350_gauge_get_func(struct oplus_chg_ic_dev *ic_dev,
 					   enum oplus_chg_ic_func func_id)
 {
@@ -7285,6 +7545,14 @@ static void *oplus_chg_8350_gauge_get_func(struct oplus_chg_ic_dev *ic_dev,
 	case OPLUS_IC_FUNC_GAUGE_SET_READ_MODE:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SET_READ_MODE,
 			oplus_set_read_mode);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_GET_DEC_FG_TYPE:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_DEC_FG_TYPE,
+						   oplus_fg_get_dec_fg_type);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_GET_DEC_CV_SOH:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_DEC_CV_SOH,
+						   oplus_fg_get_dec_cv_soh);
 		break;
 	default:
 		chg_err("this func(=%d) is not supported\n", func_id);
@@ -8293,6 +8561,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&bcdev->recheck_input_current_work, oplus_recheck_input_current_work);
 	INIT_DELAYED_WORK(&bcdev->qc_type_check_work, oplus_qc_type_check_work);
 	INIT_DELAYED_WORK(&bcdev->vbus_collapse_rerun_icl_work, oplus_vbus_collapse_rerun_icl_work);
+	INIT_DELAYED_WORK(&bcdev->publish_close_cp_item_work, oplus_publish_close_cp_item_work);
 	INIT_DELAYED_WORK(&bcdev->ibus_collapse_rerun_aicl_work, oplus_ibus_collapse_rerun_aicl_work);
 	INIT_DELAYED_WORK(&bcdev->sourcecap_done_work, oplus_sourcecap_done_work);
 #endif

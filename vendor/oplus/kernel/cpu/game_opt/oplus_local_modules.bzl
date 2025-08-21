@@ -16,7 +16,11 @@ def define_oplus_local_modules():
             "rt_info.c",
             "task_util.c",
             "yield_opt.c",
+            "frame_load.c",
             "frame_sync.c",
+            "task_boost/heavy_task_boost.c",
+            "task_boost/boost_proc.c",
+            "critical_task_boost.c",
         ]),
         conditional_srcs = {
         },

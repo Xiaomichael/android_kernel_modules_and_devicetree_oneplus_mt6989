@@ -128,9 +128,11 @@
 #include <soc/oplus/system/oplus_project.h>
 #define IMX355_I2C_SLAVE_ADDR              (0x1a)
 #define SC202CS_I2C_SLAVE_ADDR             (0x36)
+#define OV02B1B_I2C_SLAVE_ADDR             (0x3D)
 #define IMX355_EEPROM_I2C_SLAVE_ADDR       (0x51)
 #define IMX355_I2C_MAX_FREQUENCY           (400000)
 #define SC202CS_I2C_MAX_FREQUENCY          (400000)
+#define OV02B1B_I2C_MAX_FREQUENCY          (400000)
 #define I2C_MAX_FREQUENCY                  (1000000)
 #define PARENT_CLK                         (124800000)
 #endif
@@ -2217,6 +2219,21 @@ static void olus_changeI2cSpeed(struct mtk_i2c *i2c, struct i2c_msg msgs[])
                 || project == 24750) && (i2c->adap.nr == 2)) {
         if (msgs[0].addr == SC202CS_I2C_SLAVE_ADDR) {
             i2c->speed_hz = SC202CS_I2C_MAX_FREQUENCY;
+        } else {
+            i2c->speed_hz = I2C_MAX_FREQUENCY;
+        }
+        ret = mtk_i2c_set_speed(i2c,PARENT_CLK);
+        if (!ret) {
+            pr_info("change i2c frequency to %u success", i2c->speed_hz);
+        } else {
+            pr_err("change i2c frequency to %u Fail !!!", i2c->speed_hz);
+        }
+        mtk_i2c_writew(i2c, i2c->timing_reg, OFFSET_TIMING);
+        mtk_i2c_writew(i2c, i2c->high_speed_reg, OFFSET_HS);
+        mtk_i2c_writew(i2c, i2c->ltiming_reg, OFFSET_LTIMING);
+	} else if ((project == 24035 || project == 24345) && (i2c->adap.nr == 2)) {
+        if (msgs[0].addr == OV02B1B_I2C_SLAVE_ADDR) {
+            i2c->speed_hz = OV02B1B_I2C_MAX_FREQUENCY;
         } else {
             i2c->speed_hz = I2C_MAX_FREQUENCY;
         }

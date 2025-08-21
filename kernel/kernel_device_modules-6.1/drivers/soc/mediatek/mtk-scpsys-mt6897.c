@@ -529,7 +529,8 @@ static const struct scp_domain_data scp_domain_mt6897_spm_data[] = {
 			BUS_PROT_IGN(IFR_TYPE, 0x224, 0x228, 0x220, 0x22c,
 				MT6897_TOP_AXI_PROT_EN_MMSYS2_CAM_MAIN),
 		},
-		.caps = MTK_SCPD_IS_PWR_CON_ON | MTK_SCPD_PROFILE,
+		.caps = MTK_SCPD_IS_PWR_CON_ON | MTK_SCPD_PROFILE |
+			MTK_SCPD_ISO_DELAY,
 	},
 	[MT6897_POWER_DOMAIN_CAM_MRAW] = {
 		.name = "cam_mraw",

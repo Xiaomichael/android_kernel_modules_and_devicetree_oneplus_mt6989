@@ -1330,9 +1330,7 @@ void btmtk_blank_state_work(struct work_struct *work) {
 }
 
 int btmtk_intcmd_wmt_blank_status(unsigned char blank_state) {
-//#ifndef OPLUS_BUG_STABILITY
-//Now disable this feature
-	/*u8 cmd[] = { 0x01, 0x5D, 0xFC, 0x03, 0x00, 0x04, 0x00};
+	u8 cmd[] = { 0x01, 0x5D, 0xFC, 0x03, 0x00, 0x04, 0x00};
 	u8 evt[] = {0x04, 0x0E, 0x07, 0x01, 0x5D, 0xFC};
 	int ret = 0;
 
@@ -1363,11 +1361,7 @@ int btmtk_intcmd_wmt_blank_status(unsigned char blank_state) {
 	if (ret < 0)
 		BTMTK_WARN("%s faill to set blank_state to fw", __func__);
 
-	return ret;*/
-//#else
-    BTMTK_INFO("%s: fw log enabled when screen off", __func__);
-    return 0;
-//#endif /* OPLUS_BUG_STABILITY */
+	return ret;
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)

@@ -114,6 +114,10 @@
 #define MT6375_REG_WD2MISCSET	(0x28)
 #define MT6375_REG_WD2VOLCMP	(0x29)
 
+/* PMU */
+#define MT6375_REG_DPDM_CTRL1	(0x153)
+#define MT6375_REG_DPDM_CTRL3	(0x155)
+
 /* Mask & Shift */
 /* MT6375_REG_PHYCTRL8: 0x89 */
 #define MT6375_MSK_PRLRSTB	BIT(1)
@@ -335,6 +339,28 @@ enum mt6375_wd_chan {
 	MT6375_WD_CHAN_WD2,
 	MT6375_WD_CHAN_NUM,
 };
+
+#if IS_ENABLED(CONFIG_OPLUS_LIQUID_DETECTION)
+enum mt6375_adc_chan {
+	MT6375_ADC_CHAN_CC1 = 2,
+	MT6375_ADC_CHAN_CC2,
+	MT6375_ADC_CHAN_USBDP,
+	MT6375_ADC_CHAN_USBDM,
+	MT6375_ADC_CHAN_MAX,
+};
+
+enum mt6375_lpd_sel_type {
+	OPLUS_LPD_SEL_SBU1,
+	OPLUS_LPD_SEL_SBU2,
+	OPLUS_LPD_SEL_SBU1_PULLUP,
+	OPLUS_LPD_SEL_SBU2_PULLUP,
+	OPLUS_LPD_SEL_CC1,
+	OPLUS_LPD_SEL_CC2,
+	OPLUS_LPD_SEL_DP,
+	OPLUS_LPD_SEL_DM,
+	OPLUS_LPD_SEL_INVALID,
+};
+#endif
 
 enum mt6375_wd_ipull {
 	MT6375_WD_IPULL_2UA,
@@ -1864,6 +1890,58 @@ static int mt6375_set_low_power_mode(struct tcpc_device *tcpc, bool en,
 	return mt6375_write8(ddata, MT6375_REG_SYSCTRL2, data);
 }
 
+static int mt6375_set_usb_dpdm_pull_low(struct tcpc_device *tcpc, bool enable)
+{
+	struct mt6375_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
+	int ret = 0;
+	u32 val = 0;
+
+	if (!ddata)
+		return -EINVAL;
+
+	if (enable) {
+		ret = regmap_write(ddata->rmap, MT6375_REG_DPDM_CTRL1, 0xa3);
+		if (ret) {
+			dev_err(ddata->dev, "failed to en manual mode(%d)\n", ret);
+			return ret;
+		}
+		ret = regmap_write(ddata->rmap, MT6375_REG_DPDM_CTRL3, 0x33);
+		if (ret) {
+			dev_err(ddata->dev, "failed to pull low dpdm(%d)\n", ret);
+			return ret;
+		}
+	} else {
+		ret = regmap_write(ddata->rmap, MT6375_REG_DPDM_CTRL1, 0x00);
+		if (ret) {
+			dev_err(ddata->dev, "failed to dis manual mode(%d)\n", ret);
+			return ret;
+		}
+		ret = regmap_write(ddata->rmap, MT6375_REG_DPDM_CTRL3, 0x00);
+		if (ret) {
+			dev_err(ddata->dev, "failed to reset dpdm(%d)\n", ret);
+			return ret;
+		}
+	}
+
+	ret = regmap_read(ddata->rmap, MT6375_REG_DPDM_CTRL1, &val);
+	if (ret) {
+		dev_err(ddata->dev,
+			"failed to read MT6375_REG_DPDM_CTRL1(%d)\n", ret);
+		return ret;
+	}
+	MT6375_INFO("%s: MT6375_REG_DPDM_CTRL1: %d\n", __func__, val);
+
+	ret = regmap_read(ddata->rmap, MT6375_REG_DPDM_CTRL3, &val);
+	if (ret) {
+		dev_err(ddata->dev,
+			"failed to read MT6375_REG_DPDM_CTRL3(%d)\n", ret);
+		return ret;
+	}
+	MT6375_INFO("%s: MT6375_REG_DPDM_CTRL3: %d\n", __func__, val);
+
+	return 0;
+}
+
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 static int mt6375_set_msg_header(struct tcpc_device *tcpc, u8 power_role,
 				 u8 data_role)
@@ -2259,6 +2337,181 @@ static int mt6375_get_vbus_voltage(struct tcpc_device *tcpc, u32 *vbus)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_OPLUS_LIQUID_DETECTION)
+static int mt6375_get_sbu_info(struct tcpc_device *tcpc, int* sbu, int type)
+{
+	struct mt6375_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
+	int ret = 0, sbu1 = 0, pull_up = 0;
+
+	switch (type) {
+	case OPLUS_LPD_SEL_SBU1:
+		sbu1 = 1;
+		pull_up = 0;
+		break;
+	case OPLUS_LPD_SEL_SBU2:
+		sbu1 = 0;
+		pull_up = 0;
+		break;
+	case OPLUS_LPD_SEL_SBU1_PULLUP:
+		sbu1 = 1;
+		pull_up = 1;
+		break;
+	case OPLUS_LPD_SEL_SBU2_PULLUP:
+		sbu1 = 0;
+		pull_up = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (pull_up) {
+		ret = mt6375_set_wd_ldo(ddata, MT6375_WD_LDO_3_0V);
+		if (ret < 0) {
+			MT6375_INFO("Failed to set ldo to 3.0v(%d)\n", ret);
+			goto out;
+		}
+	} else {
+		ret = mt6375_set_wd_ldo(ddata, MT6375_WD_LDO_0_6V);
+		if (ret < 0) {
+			MT6375_INFO("Failed to set ldo to 0.6v(%d)\n", ret);
+			goto out;
+		}
+	}
+
+	if (sbu1) {
+		ret = mt6375_write8(ddata, MT6375_REG_WD1PATHEN, MT6375_MSK_WDSBU1_EN);
+		if (ret < 0) {
+			MT6375_INFO("Failed to enable sbu1 path(%d)\n", ret);
+			goto out;
+		}
+		mdelay(1);
+
+		ret = iio_read_channel_processed(&ddata->adc_iio[MT6375_WD_CHAN_WD1], sbu);
+		if (ret < 0) {
+			MT6375_INFO("Fialed to get sbu1 adc(%d)\n", ret);
+			goto out;
+		}
+	} else {
+		ret = mt6375_write8(ddata, MT6375_REG_WD1PATHEN, MT6375_MSK_WDSBU2_EN);
+		if (ret < 0) {
+			MT6375_INFO("Failed to enable sbu2 path(%d)\n", ret);
+			goto out;
+		}
+		mdelay(1);
+
+		ret = iio_read_channel_processed(&ddata->adc_iio[MT6375_WD_CHAN_WD1], sbu);
+		if (ret < 0) {
+			MT6375_INFO("Fialed to get sbu2 adc(%d)\n", ret);
+			goto out;
+		}
+	}
+out:
+	return ret;
+}
+
+static int mt6375_enable_sbu_path(struct tcpc_device *tcpc, int enable)
+{
+	struct mt6375_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
+	int ret = 0;
+
+	if (enable) {
+		/* WD1_RPPULL_EN = 1, WD1_FW_MODE = 1 */
+		ret = mt6375_write8(ddata ,MT6375_REG_WD1MISCCTRL,
+						MT6375_MSK_WDFWMODE_EN | MT6375_MSK_WDRPULL_EN);
+		if (ret < 0) {
+			MT6375_INFO("Failed to set wd1 pullup(%d)\n", ret);
+			goto out;
+		}
+
+		ret = mt6375_set_wd_rpull(ddata, MT6375_WD_CHAN_WD1, MT6375_WD_RPULL_500K);
+		if (ret < 0) {
+			MT6375_INFO("Failed to pullup 500k(%d)\n", ret);
+			goto out;
+		}
+	} else {
+		/* write RG to default*/
+		ret = mt6375_set_wd_ldo(ddata, MT6375_WD_LDO_0_6V);
+		if (ret < 0) {
+			MT6375_INFO("Failed to set ldo to 0.6v(%s)\n", __func__);
+			goto out;
+		}
+
+		ret = mt6375_write8(ddata ,MT6375_REG_WD1MISCCTRL,
+						MT6375_MSK_WDDISCHG_EN | MT6375_MSK_WDRPULL_EN);
+		if (ret < 0) {
+			MT6375_INFO("Failed to set wd1 pullup(%d)\n", ret);
+			goto out;
+		}
+
+		ret = mt6375_set_wd_rpull(ddata, MT6375_WD_CHAN_WD1, MT6375_WD_RPULL_500K);
+		if (ret < 0) {
+			MT6375_INFO("Failed to pullup 500k(%s)\n", __func__);
+			goto out;
+		}
+
+		ret = mt6375_write8(ddata, MT6375_REG_WD1PATHEN, 0);
+		if (ret < 0) {
+			MT6375_INFO("Failed to disable wd1 path(%d)\n", ret);
+			goto out;
+		}
+	}
+
+out:
+	return ret;
+}
+
+static int mt6375_get_lpd_info(struct tcpc_device *tcpc, u32 *buf, u32 flag)
+{
+	struct mt6375_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
+	int ret = 0;
+	int value = 0, i, sbu = 0, chan;
+
+	ret = mt6375_enable_sbu_path(tcpc, 1);
+	if (ret < 0) {
+		MT6375_INFO("Failed to enable sbu path(%d)\n", ret);
+		goto out;
+	}
+
+	/* get sbu info */
+	for (i = OPLUS_LPD_SEL_SBU1; i < OPLUS_LPD_SEL_CC1; i++) {
+		if (flag & (1 << i)) {
+			ret = mt6375_get_sbu_info(tcpc, &sbu, i);
+			if (ret < 0) {
+				MT6375_INFO("Fialed to get sbu info i=%d, ret=%d\n", i, ret);
+				goto out;
+			}
+			buf[i] = (u32)(sbu / 1000);
+		}
+	}
+
+	ret = mt6375_enable_sbu_path(tcpc, 0);
+	if (ret < 0) {
+		MT6375_INFO("Failed to disable sbu path(%d)\n", ret);
+		goto out;
+	}
+
+	/* get cc dp/dm info */
+	for (i = OPLUS_LPD_SEL_CC1; i < OPLUS_LPD_SEL_INVALID; i++) {
+		if (flag & (1 << i)) {
+			chan = MT6375_ADC_CHAN_CC1 + i - OPLUS_LPD_SEL_CC1;
+			ret = iio_read_channel_processed(&ddata->adc_iio[chan], &value);
+			if (ret < 0) {
+				MT6375_INFO("Fialed to get %d adc(%d)\n", chan, ret);
+				goto out;
+			}
+			buf[i] = (u32)(value / 1000);
+		}
+	}
+
+	MT6375_INFO("sbu1_default = %dmV, sbu2_default = %dmv, sbu1_pullup = %dmv, sbu2_pullup = %dmv,"
+		"cc1 = %dmv, cc2 = %dmv, dp = %dmv, dm = %dmv\n",
+		buf[0], buf[1], buf[2], buf[3],
+		buf[4], buf[5], buf[6], buf[7]);
+out:
+	return ret;
+}
+#endif
+
 static struct tcpc_ops mt6375_tcpc_ops = {
 	.init = mt6375_tcpc_init,
 	.init_alert_mask = mt6375_init_mask,
@@ -2277,7 +2530,11 @@ static struct tcpc_ops mt6375_tcpc_ops = {
 	.alert_vendor_defined_handler = mt6375_alert_vendor_defined_handler,
 	.set_auto_dischg_discnt = mt6375_set_auto_dischg_discnt,
 	.get_vbus_voltage = mt6375_get_vbus_voltage,
+#if IS_ENABLED(CONFIG_OPLUS_LIQUID_DETECTION)
+	.get_lpd_info = mt6375_get_lpd_info,
+#endif
 	.set_low_power_mode = mt6375_set_low_power_mode,
+	.set_usb_dpdm_pull_low = mt6375_set_usb_dpdm_pull_low,
 
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 	.set_msg_header = mt6375_set_msg_header,

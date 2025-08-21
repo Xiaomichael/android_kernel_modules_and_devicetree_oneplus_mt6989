@@ -312,6 +312,7 @@ enum ufs_mtk_host_caps {
 	UFS_MTK_CAP_MPHY_DUMP                  = 1 << 11,
 	UFS_MTK_CAP_BYPASS_VCCQX_LPM           = 1 << 12,
 	UFS_MTK_CAP_UFS4_DOWNGRADE_UFS31       = 1 << 13,
+	UFS_MTK_CAP_LOCAL_PROCESS              = 1 << 14,
 };
 
 struct ufs_mtk_crypt_cfg {

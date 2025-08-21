@@ -64,13 +64,15 @@ struct lcm {
 
 extern unsigned int oplus_display_brightness;
 extern unsigned int oplus_max_normal_brightness;
+extern unsigned int oplus_enhance_mipi_strength;
 extern unsigned long seed_mode;
+extern int oplus_display_panel_dbv_probe(struct device *dev);
 static int current_fps = 60;
 static bool aod_state = false;
 
-#define MAX_NORMAL_BRIGHTNESS   3515
+#define MAX_NORMAL_BRIGHTNESS   3792
 #define LCM_BRIGHTNESS_TYPE 2
-#define FINGER_HBM_BRIGHTNESS 3730
+#define FINGER_HBM_BRIGHTNESS 4050
 
 extern void lcdinfo_notify(unsigned long val, void *v);
 
@@ -189,93 +191,7 @@ static void lcm_panel_init(struct lcm *ctx)
     lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x01);
     lcm_dcs_write_seq_static(ctx,0xD1,0x07,0x00,0x0E,0x00,0x00,0x01,0x00,0x00,0x01,0x00,0x00,0x01,0x00,0x00,0x01);
 
-    //LHBM
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x37);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x00);
-    lcm_dcs_write_seq_static(ctx,0x67,0x38);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x00,0x12);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x07);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x03);
-    lcm_dcs_write_seq_static(ctx,0xC0,0x00,0x00,0x00,0x00,0x55,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x00);
-    lcm_dcs_write_seq_static(ctx,0xD1,0x21,0x00,0x1B,0x90,0x1B,0x90,0x00,0x00,0x3F,0xED,0xE9,0x80,0x3F,0xED,0xE9,0x80,0x00,0x02,0xF7,0xB1,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x15);
-    lcm_dcs_write_seq_static(ctx,0xD1,0x18,0x12,0xC8,0x1C,0x88,0x2A,0x7E,0x33,0xF0,0xAC,0xAC,0x1B,0x90,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x25);
-    lcm_dcs_write_seq_static(ctx,0xD1,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x18,0x40,0x40,0x40,0x40,0x40,0x40);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x00);
-    lcm_dcs_write_seq_static(ctx,0xD2,0x27,0x00,0x1B,0x90,0x1B,0x90,0x00,0x00,0x00,0x00,0x00,0x00,0x3F,0xED,0xE9,0x80,0x00,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x15);
-    lcm_dcs_write_seq_static(ctx,0xD2,0x18,0x22,0x1D,0x71,0x88,0x2A,0x7E,0x33,0x30,0x54,0xAC,0x00,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x25);
-    lcm_dcs_write_seq_static(ctx,0xD2,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x18,0x40,0x40,0x40,0x40,0x40,0x40);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x00);
-    lcm_dcs_write_seq_static(ctx,0xD3,0x2B,0x00,0x1B,0x90,0x1B,0x90,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7F,0xFD,0x08,0x4F,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x15);
-    lcm_dcs_write_seq_static(ctx,0xD3,0x3B,0x22,0x1D,0x71,0x88,0x7F,0xD3,0x33,0x0F,0x54,0x54,0xE4,0x70,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x25);
-    lcm_dcs_write_seq_static(ctx,0xD3,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x3B,0x40,0x40,0x40,0x40,0x40,0x40);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x00);
-    lcm_dcs_write_seq_static(ctx,0xD4,0x2D,0x00,0x1B,0x90,0x1B,0x90,0x00,0x00,0x3F,0xED,0xE9,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x15);
-    lcm_dcs_write_seq_static(ctx,0xD4,0x3B,0x12,0xC8,0x1C,0x88,0x7F,0xD3,0x33,0xC0,0xAC,0x54,0x00,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x25);
-    lcm_dcs_write_seq_static(ctx,0xD4,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x3B,0x40,0x40,0x40,0x40,0x40,0x40);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x13);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x02,0x1C,0x08,0x7E,0x00,0x00,0x00,0x00,0x01,0xC8,0x08,0x2A,0x02,0x71,0x08,0xD3,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0x88,0x01,0x02,0x1C,0x08,0x7F,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x00);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x08);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x01);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x40);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x31);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x00,0x1A);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x37);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x00,0x00,0x12);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x8B);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x35,0x8C,0x38,0x8C,0x33,0xAC);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x34);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x17);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x01);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x2A);
-    lcm_dcs_write_seq_static(ctx,0xB9,0x30);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x0C);
-    lcm_dcs_write_seq_static(ctx,0xB9,0x5A);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x13);
-    lcm_dcs_write_seq_static(ctx,0xB9,0x56);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x06);
-    lcm_dcs_write_seq_static(ctx,0xDE,0x00,0x16,0x00,0x07);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x04);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x5A);
-    lcm_dcs_write_seq_static(ctx,0xD2,0x17,0x17,0x17,0x17,0x17,0x06,0x20,0x20,0x20,0x20,0x20,0x0B,0x20,0x20,0x20,0x20,0x20,0x06,0x13,0x13,0x13,0x13,0x13,0x04,0x08,0x08,0x08,0x08,0x08,0x04,0x20,0x11,0x11,0x11,0x11,0x08,0x1A,0x1A,0x1A,0x1A,0x1A,0x0B,0x1A,0x1A,0x1A,0x1A,0x1A,0x06,0x11,0x11,0x11,0x11,0x11,0x06,0x0A,0x0A,0x0A,0x0A,0x0A,0x04,0x17,0x17,0x17,0x17,0x17,0x06,0x20,0x20,0x20,0x20,0x20,0x0B,0x20,0x20,0x20,0x20,0x20,0x06,0x15,0x15,0x15,0x15,0x15,0x04,0x08,0x08,0x08,0x08,0x08,0x04);
-    lcm_dcs_write_seq_static(ctx,0x88,0x01,0x02,0x1C,0x08,0x7F,0x00,0x00,0x00,0x00);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x00);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x01);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x36);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x00);
-    lcm_dcs_write_seq_static(ctx,0X6F,0X37);
-    lcm_dcs_write_seq_static(ctx,0XDF,0X00,0X00,0X12);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x34);
-    lcm_dcs_write_seq_static(ctx,0xDF,0x37);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x01);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x0C);
-    lcm_dcs_write_seq_static(ctx,0xB9,0x5A);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x13);
-    lcm_dcs_write_seq_static(ctx,0xB9,0x08);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x06);
-    lcm_dcs_write_seq_static(ctx,0xDE,0x00,0x16,0x00,0x07);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x02);
-    lcm_dcs_write_seq_static(ctx,0xD1,0x26,0xD2,0x24,0x1D,0x2E,0xEC);//---for DBV = 0x47C
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x08);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x4A);
-    lcm_dcs_write_seq_static(ctx,0xB8,0x08,0x00);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x4C);
-    lcm_dcs_write_seq_static(ctx,0xB8,0x0F,0xFF);
-    lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x04);
-    lcm_dcs_write_seq_static(ctx,0x6F,0x5A);
-    lcm_dcs_write_seq_static(ctx,0xD2,0x1B,0x1B,0x1B,0x10,0x0B,0x06,0x19,0x19,0x19,0x10,0x0B,0x0B,0x20,0x20,0x20,0x17,0x14,0x06,0x17,0x17,0x17,0x16,0x13,0x04,0x12,0x12,0x12,0x10,0x08,0x04,0x1F,0x1F,0x1F,0x14,0x0E,0x08,0x25,0x25,0x25,0x13,0x0E,0x0B,0x21,0x21,0x21,0x18,0x13,0x06,0x1E,0x1E,0x1E,0x18,0x11,0x06,0x14,0x14,0x14,0x12,0x0A,0x04,0x1B,0x1B,0x1B,0x10,0x0B,0x06,0x1A,0x1A,0x1A,0x0F,0x0B,0x0B,0x20,0x20,0x20,0x18,0x17,0x06,0x1B,0x1B,0x1B,0x16,0x15,0x04,0x12,0x12,0x12,0x10,0x08,0x04);
+    lcm_dcs_write_seq_static(ctx,0x88,0x01,0x02,0x1C,0x08,0x87,0x00,0x00,0x00,0x00);
 
     //--关闭硬件圆角
     lcm_dcs_write_seq_static(ctx,0xF0,0x55,0xAA,0x52,0x08,0x07);
@@ -381,11 +297,13 @@ static int lcm_enable(struct drm_panel *panel)
 #define FRAME_WIDTH             (1080)
 #define FRAME_HEIGHT            (2392)
 #define HFP                     (140)
+#define HFP_144                 (29)
 #define HBP                     (40)
 #define HSA                     (8)
 #define VFP_60HZ                (2516)
 #define VFP_90HZ                (864)
 #define VFP_120HZ               (52)
+#define VFP_144HZ               (84)
 #define VBP                     (18)
 #define VSA                     (2)
 
@@ -423,6 +341,18 @@ static const struct drm_display_mode disp_mode_120Hz = {
     .vsync_start = FRAME_HEIGHT + VFP_120HZ,
     .vsync_end = FRAME_HEIGHT + VFP_120HZ + VSA,
     .vtotal = FRAME_HEIGHT + VFP_120HZ + VSA + VBP,
+};
+
+static const struct drm_display_mode disp_mode_144Hz = {
+    .clock = ((FRAME_WIDTH + HFP_144 + HBP + HSA) * (FRAME_HEIGHT + VFP_144HZ + VBP + VSA) * 144) / 1000,
+    .hdisplay = FRAME_WIDTH,
+    .hsync_start = FRAME_WIDTH + HFP_144,
+    .hsync_end = FRAME_WIDTH + HFP_144 + HSA,
+    .htotal = FRAME_WIDTH + HFP_144 + HSA + HBP,
+    .vdisplay = FRAME_HEIGHT,
+    .vsync_start = FRAME_HEIGHT + VFP_144HZ,
+    .vsync_end = FRAME_HEIGHT + VFP_144HZ + VSA,
+    .vtotal = FRAME_HEIGHT + VFP_144HZ + VSA + VBP,
 };
 
 static struct mtk_panel_params ext_params_60Hz = {
@@ -477,7 +407,7 @@ static struct mtk_panel_params ext_params_60Hz = {
     .oplus_panel_use_rgb_gain = true,
 
     .vendor = "HX_NT37703A",
-    .manufacture = "HX_CASIOX",
+    .manufacture = "HX_CASIOY",
 
     .oplus_ofp_need_keep_apart_backlight = true,
     .oplus_ofp_hbm_on_delay = 11,
@@ -582,7 +512,7 @@ static struct mtk_panel_params ext_params_90Hz = {
     .oplus_panel_use_rgb_gain = true,
 
     .vendor = "HX_NT37703A",
-    .manufacture = "HX_CASIOX",
+    .manufacture = "HX_CASIOY",
 
     .oplus_ofp_need_keep_apart_backlight = true,
     .oplus_ofp_hbm_on_delay = 11,
@@ -688,7 +618,112 @@ static struct mtk_panel_params ext_params_120Hz = {
     .oplus_panel_use_rgb_gain = true,
 
     .vendor = "HX_NT37703A",
-    .manufacture = "HX_CASIOX",
+    .manufacture = "HX_CASIOY",
+
+    .oplus_ofp_need_keep_apart_backlight = true,
+    .oplus_ofp_hbm_on_delay = 11,
+    .oplus_ofp_pre_hbm_off_delay = 2,
+    .oplus_ofp_hbm_off_delay = 11,
+    .oplus_uiready_before_time = 17,
+    .lcm_color_mode = MTK_DRM_COLOR_MODE_DISPLAY_P3,
+
+    .dsc_params = {
+        .enable = 1,
+        .ver = 17,
+        .slice_mode = 1,
+        .rgb_swap = 0,
+        .dsc_cfg = 40,
+        .rct_on = 1,
+        .bit_per_channel = 10,
+        .dsc_line_buf_depth = 11,
+        .bp_enable = 1,
+        .bit_per_pixel = 128,
+        .pic_height = 2392,
+        .pic_width = 1080,
+        .slice_height = 8,
+        .slice_width = 540,
+        .chunk_size = 540,
+        .xmit_delay = 512,
+        .dec_delay = 526,
+        .scale_value = 32,
+        .increment_interval = 187,
+        .decrement_interval = 7,
+        .line_bpg_offset = 12,
+        .nfl_bpg_offset = 3511,
+        .slice_bpg_offset = 3255,
+        .initial_offset = 6144,
+        .final_offset = 4336,
+        .flatness_minqp = 7,
+        .flatness_maxqp = 16,
+        .rc_model_size = 8192,
+        .rc_edge_factor = 6,
+        .rc_quant_incr_limit0 = 15,
+        .rc_quant_incr_limit1 = 15,
+        .rc_tgt_offset_hi = 3,
+        .rc_tgt_offset_lo = 3,
+        .ext_pps_cfg = {
+            .enable = 1,
+            .rc_buf_thresh = nt37703a_vdo_dphy_buf_thresh,
+            .range_min_qp = nt37703a_vdo_dphy_range_min_qp,
+            .range_max_qp = nt37703a_vdo_dphy_range_max_qp,
+            .range_bpg_ofs = nt37703a_vdo_dphy_range_bpg_ofs,
+            },
+    },
+};
+
+static struct mtk_panel_params ext_params_144Hz = {
+    .pll_clk = 555,
+    .data_rate = 1110,
+    .change_fps_by_vfp_send_cmd_need_delay = 1,
+    .dyn_fps = {
+        .switch_en = 1,
+        .vact_timing_fps = 120,
+        // .send_mode = 1,
+        // .send_cmd_need_delay = 1,
+        .dfps_cmd_table[0] = {0, 2 , {0x2F, 0x01}},
+    },
+    .dyn = {
+        .switch_en = 1,
+        .pll_clk = 563,
+        .data_rate = 1126,
+        .hfp = 34,
+        .vfp = VFP_144HZ,
+        .vsa = VSA,
+        .vbp = VBP,
+        .hsa = HSA,
+        .hbp = HBP,
+    },
+    .output_mode = MTK_PANEL_DSC_SINGLE_PORT,
+
+    .cust_esd_check = 1,
+    .esd_check_enable = 1,
+    .lcm_esd_check_table[0] = {
+        .cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
+    },
+    .lcm_esd_check_table[1] = {
+        .cmd = 0xAB, .count = 2, .para_list[0] = 0x00, .para_list[1] = 0x00,
+    },
+    .vdo_mix_mode_en = false,
+    // .lcm_esd_check_table[1] = {
+    //     .cmd = 0x05, .count = 1, .para_list[0] = 0x00,
+    // },
+
+
+    .round_corner_en = 1,
+    .corner_pattern_height = ROUND_CORNER_H_TOP,
+    .corner_pattern_height_bot = ROUND_CORNER_H_BOT,
+    .corner_pattern_tp_size = sizeof(top_rc_pattern),
+    .corner_pattern_lt_addr = (void *)top_rc_pattern,
+
+    .oplus_display_global_dre = 1,
+    .oplus_custom_hdr_color_tmp = true,
+    .oplus_custom_hdr_red = 950,
+    .oplus_custom_hdr_green = 1024,
+    .oplus_custom_hdr_blue = 800,
+    .oplus_panel_use_rgb_gain = true,
+
+    .vendor = "HX_NT37703A",
+    .manufacture = "HX_CASIOY",
 
     .oplus_ofp_need_keep_apart_backlight = true,
     .oplus_ofp_hbm_on_delay = 11,
@@ -905,6 +940,33 @@ static bool panel_hbm_set_wait_state(struct drm_panel *panel, bool wait)
 
     ctx->hbm_wait = wait;
     return old;
+}
+
+static int oplus_display_panel_set_hbm_max(void *dsi, dcs_write_gce_pack cb1, dcs_write_gce cb2, void *handle, unsigned int en) {
+    unsigned int i = 0;
+
+    pr_info("en=%d\n", en);
+
+    if (!dsi || !cb1 || !cb2) {
+        pr_info("Invalid params\n");
+        return -EINVAL;
+    }
+
+    if (en) {
+        for (i = 0; i < sizeof(dsi_switch_hbm_apl_on) / sizeof(struct LCM_setting_table); i++) {
+            cb2(dsi, handle, dsi_switch_hbm_apl_on[i].para_list, dsi_switch_hbm_apl_on[i].count);
+        }
+        pr_info("Enter hbm_max mode");
+    } else if (!en) {
+        dsi_switch_hbm_apl_off[0].para_list[1] = oplus_display_brightness >> 8;
+        dsi_switch_hbm_apl_off[0].para_list[2] = oplus_display_brightness & 0xFF;
+        for (i = 0; i < sizeof(dsi_switch_hbm_apl_off) / sizeof(struct LCM_setting_table); i++) {
+            cb2(dsi, handle, dsi_switch_hbm_apl_off[i].para_list, dsi_switch_hbm_apl_off[i].count);
+        }
+        pr_info("hbm_max off, restore bl:%d\n", oplus_display_brightness);
+    }
+
+    return 0;
 }
 
 static int panel_doze_disable(struct drm_panel *panel, void *dsi, dcs_write_gce cb, void *handle)
@@ -1229,9 +1291,12 @@ static int mtk_panel_ext_param_set(struct drm_panel *panel,
     } else if (m_vrefresh == 90) {
         ext->params = &ext_params_90Hz;
         current_fps = 90;
-    }else if (m_vrefresh == 120) {
+    } else if (m_vrefresh == 120) {
         ext->params = &ext_params_120Hz;
         current_fps = 120;
+    }  else if (m_vrefresh == 144) {
+        ext->params = &ext_params_144Hz;
+        current_fps = 144;
     } else {
         ret = 1;
     }
@@ -1253,6 +1318,7 @@ static struct mtk_panel_funcs ext_funcs = {
     .oplus_ofp_set_lhbm_pressed_icon_single = oplus_ofp_set_lhbm_pressed_icon_single,
     .doze_disable = panel_doze_disable,
     .doze_enable = panel_doze_enable,
+    .lcm_set_hbm_max = oplus_display_panel_set_hbm_max,
     .set_aod_light_mode = panel_set_aod_light_mode,
     .esd_backlight_recovery = oplus_esd_backlight_recovery,
 
@@ -1265,7 +1331,7 @@ static struct mtk_panel_funcs ext_funcs = {
 static int lcm_get_modes(struct drm_panel *panel,
                     struct drm_connector *connector)
 {
-    struct drm_display_mode *mode[3];
+    struct drm_display_mode *mode[4];
 
     mode[0] = drm_mode_duplicate(connector->dev, &disp_mode_60Hz);
     if (!mode[0]) {
@@ -1295,6 +1361,15 @@ static int lcm_get_modes(struct drm_panel *panel,
     drm_mode_set_name(mode[2]);
     mode[2]->type = DRM_MODE_TYPE_DRIVER;
     drm_mode_probed_add(connector, mode[2]);
+
+    mode[3] = drm_mode_duplicate(connector->dev, &disp_mode_144Hz);
+    if (!mode[3]) {
+        pr_info("%s failed to add mode %ux%ux@%u\n", __func__, disp_mode_144Hz.hdisplay, disp_mode_144Hz.vdisplay, drm_mode_vrefresh(&disp_mode_144Hz));
+        return -ENOMEM;
+    }
+    drm_mode_set_name(mode[3]);
+    mode[3]->type = DRM_MODE_TYPE_DRIVER;
+    drm_mode_probed_add(connector, mode[3]);
 
 
     connector->display_info.width_mm = 69;
@@ -1425,10 +1500,11 @@ static int lcm_probe(struct mipi_dsi_device *dsi)
     if (ret < 0)
         return ret;
 #endif
-
+    oplus_display_panel_dbv_probe(dev);
     register_device_proc("lcd", "HX_NT37703A", "HX_CASIOY");
     ctx->hbm_en = false;
     oplus_max_normal_brightness = MAX_NORMAL_BRIGHTNESS;
+    oplus_enhance_mipi_strength = 4;
     oplus_ofp_init(dev);
 
 

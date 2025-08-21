@@ -30,6 +30,7 @@ int oplus_display_panel_set_pq_trigger(void *buf);
 void oplus_te_check(struct mtk_drm_crtc *mtk_crtc, unsigned long long te_time_diff);
 int oplus_display_panel_get_panel_bpp(void *buf);
 int oplus_display_panel_get_panel_type(void *data);
+int oplus_display_panel_get_iris_loopback_status(void *buf);
 int oplus_display_panel_set_hbm_max(void *data);
 int oplus_display_panel_get_hbm_max(void *data);
 ssize_t oplus_get_hbm_max_debug(struct kobject *obj,

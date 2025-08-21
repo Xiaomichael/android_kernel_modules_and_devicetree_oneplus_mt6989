@@ -103,6 +103,8 @@
 #define UFCS_CP_WATCHDOG_TIMEOUT_MS	5000
 #define UFCS_CP_WATCHDOG_DISABLE	0
 
+#define UFCS_POWER(v_mv, i_ma)		(v_mv * i_ma / 1000 / 1000 * 1000)
+
 enum {
 	UFCS_BAT_TEMP_NATURAL = 0,
 	UFCS_BAT_TEMP_HIGH0,
@@ -822,11 +824,13 @@ static int oplus_ufcs_config_cp_watchdog(struct oplus_ufcs *chip, int timeout_ms
 		chg_err("cp_ic is NULL\n");
 		return -ENODEV;
 	}
-	chg_info("ufcs set cp watchdog time to %dms\n", timeout_ms);
 
 	rc = oplus_chg_ic_func(chip->cp_ic, OPLUS_IC_FUNC_CP_WATCHDOG_ENABLE, timeout_ms);
+	chg_info("ufcs set cp watchdog time to %dms, rc=%d\n", timeout_ms, rc);
+	if (rc < 0 && rc != -ENOTSUPP)
+		return rc;
 
-	return rc;
+	return 0;
 }
 
 static int oplus_ufcs_set_online(struct oplus_ufcs *chip, bool online)
@@ -1126,6 +1130,52 @@ static int oplus_ufcs_push_lcf_alarm_status(struct oplus_ufcs *chip, int status)
 	rc = oplus_mms_publish_msg_sync(chip->batt_bal_topic, msg);
 	if (rc < 0) {
 		chg_err("publish lcf alarm status msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
+
+	return rc;
+}
+
+static int oplus_ufcs_push_emark_power(struct oplus_ufcs *chip, int power_mw)
+{
+	struct mms_msg *msg;
+	int rc;
+
+	if (!chip->ufcs_topic)
+		return -ENODEV;
+
+	msg = oplus_mms_alloc_int_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM, UFCS_ITEM_EMARK_POWER, power_mw);
+	if (msg == NULL) {
+		chg_err("alloc emark power msg error\n");
+		return -ENOMEM;
+	}
+
+	rc = oplus_mms_publish_msg(chip->ufcs_topic, msg);
+	if (rc < 0) {
+		chg_err("publish emark power msg error, rc=%d\n", rc);
+		kfree(msg);
+	}
+
+	return rc;
+}
+
+static int oplus_ufcs_push_adapter_power(struct oplus_ufcs *chip, int power_mw)
+{
+	struct mms_msg *msg;
+	int rc;
+
+	if (!chip->ufcs_topic)
+		return -ENODEV;
+
+	msg = oplus_mms_alloc_int_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM, UFCS_ITEM_ADAPTER_POWER, power_mw);
+	if (msg == NULL) {
+		chg_err("alloc emark power msg error\n");
+		return -ENOMEM;
+	}
+
+	rc = oplus_mms_publish_msg(chip->ufcs_topic, msg);
+	if (rc < 0) {
+		chg_err("publish emark power msg error, rc=%d\n", rc);
 		kfree(msg);
 	}
 
@@ -2023,6 +2073,8 @@ static void oplus_ufcs_force_exit(struct oplus_ufcs *chip)
 	chip->startup_retry_times = 0;
 	chip->emark_imax = 0;
 	chip->power_imax = 0;
+	oplus_ufcs_push_emark_power(chip, UFCS_POWER(chip->config.target_vbus_mv, 0));
+	oplus_ufcs_push_adapter_power(chip, UFCS_POWER(chip->config.target_vbus_mv, 0));
 	oplus_ufcs_config_cp_watchdog(chip, UFCS_CP_WATCHDOG_DISABLE);
 	oplus_ufcs_cp_set_work_start(chip, false);
 	oplus_ufcs_exit_ufcs_mode(chip);
@@ -2199,6 +2251,7 @@ static int oplus_ufcs_deal_emark_info(struct oplus_ufcs *chip)
 		return chip->emark_imax;
 
 	vote(chip->ufcs_curr_votable, CABLE_MAX_VOTER, true, chip->emark_imax, false);
+	oplus_ufcs_push_emark_power(chip, UFCS_POWER(chip->config.target_vbus_mv, chip->emark_imax));
 
 	return 0;
 }
@@ -2565,6 +2618,7 @@ static void oplus_ufcs_switch_check_work(struct work_struct *work)
 		goto err;
 	}
 	vote(chip->ufcs_curr_votable, BASE_MAX_VOTER, true, max_curr, false);
+	oplus_ufcs_push_adapter_power(chip, UFCS_POWER(chip->config.target_vbus_mv, max_curr));
 
 /* TODO
 	rc = oplus_ufcs_get_cable_info(chip, &chip->cable_info);
@@ -2819,7 +2873,7 @@ static int oplus_ufcs_charge_start(struct oplus_ufcs *chip)
 			}
 			rc = oplus_ufcs_config_cp_watchdog(chip, UFCS_CP_WATCHDOG_TIMEOUT_MS);
 			if (rc < 0) {
-				chg_err("ufcs config cp watchdog error,rc=%d", rc);
+				chg_err("ufcs config cp watchdog error,rc=%d\n", rc);
 				return rc;
 			}
 			oplus_ufcs_cp_adc_enable(chip, true);
@@ -6055,6 +6109,16 @@ static struct mms_item oplus_ufcs_item[] = {
 		.desc = {
 			.item_id = UFCS_ITEM_UFCS_VID,
 			.update = oplus_ufcs_update_ufcs_vid,
+		}
+	},
+	{
+		.desc = {
+			.item_id = UFCS_ITEM_EMARK_POWER,
+		}
+	},
+	{
+		.desc = {
+			.item_id = UFCS_ITEM_ADAPTER_POWER,
 		}
 	},
 };

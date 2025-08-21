@@ -60,6 +60,15 @@ enum {
 	MUX_PGA_6,
 	MUX_HP_L,
 	MUX_HP_R,
+	MUX_MISO_0,
+	MUX_MISO_1,
+	MUX_MISO_2,
+	MUX_MISO_3,
+	MUX_MISO_4,
+	MUX_MISO_5,
+	MUX_UL_SRC,
+	MUX_UL2_SRC,
+	MUX_UL3_SRC,
 	MUX_NUM,
 };
 
@@ -337,6 +346,7 @@ enum {
 enum {
 	UL_SRC_MUX_AMIC = 0,
 	UL_SRC_MUX_DMIC,
+	UL_SRC_MUX_MASK = 0x1,
 };
 
 enum {
@@ -346,6 +356,7 @@ enum {
 	MISO_MUX_UL2_CH2,
 	MISO_MUX_UL3_CH1,
 	MISO_MUX_UL3_CH2,
+	MISO_MUX_MASK = 0x7,
 };
 
 enum {
@@ -514,6 +525,7 @@ struct mt6681_priv {
 	unsigned int miso_only;
 	unsigned int hwgain_enable;
 	unsigned int dl_hwgain;
+	unsigned int codec_dump;
 
 	/* hw version */
 	int hw_ver;

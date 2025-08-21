@@ -395,6 +395,28 @@ config DRM_PANEL_AA600_P_3_A0025_VDO_PANEL
 	  resolution and uses 30-bits RGB per pixel. It provides a
 	  MIPI DSI interface to host.
 
+config DRM_PANEL_AC304_P_7_A0025_VDO_PANEL
+	tristate "oplus FHD DPHY cmd mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for TM NT37703a
+	  DPHY VDO mode Full HD Plus 120HZ panel. The panel has a 1080x2372
+	  resolution and uses 30-bits RGB per pixel. It provides a
+	  MIPI DSI interface to host.
+
+config DRM_PANEL_AC304_P_3_A0027_VDO_PANEL
+	tristate "oplus FHD DPHY cmd mode panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for BOE EPD8820
+	  DPHY VDO mode Full HD Plus 120HZ panel. The panel has a 1080x2372
+	  resolution and uses 30-bits RGB per pixel. It provides a
+	  MIPI DSI interface to host.
+
 config DRM_PANEL_PANEL_AB946_P_3_A0020_DSI_CMD_BCP
         tristate "oplus FHD DPHY cmd mode panel"
         depends on OF

@@ -907,8 +907,11 @@ struct GLUE_INFO {
 #if CFG_SUPPORT_RX_NAPI
 	struct napi_struct *prRxDirectNapi;
 	struct kfifo rRxKfifoQ;
+	u_int8_t fgNapiReady;
+	u_int8_t fgNapiScheduleTimeout;
 	uint8_t *prRxKfifoBuf;
 	uint32_t u4RxKfifoBufLen;
+	uint32_t u4LastNapiPollCnt;
 #if CFG_NAPI_DELAY
 	struct hrtimer rNapiDelayTimer;
 	unsigned long ulNapiDelayFlag;

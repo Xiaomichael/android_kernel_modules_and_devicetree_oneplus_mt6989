@@ -1523,6 +1523,8 @@ static ssize_t rtp_store(struct device *dev,
 		|| (val >=  OS12_NEW_RING_START && val <= OS12_NEW_RING_END)
 		|| (val >=  OPLUS_RING_START && val < OPLUS_RING_END)
 		|| (val >=  OS14_NEW_RING_START && val <= OS14_NEW_RING_END)
+		|| (val >=  OS15_ALARM_RING_START && val <= OS15_ALARM_RING_END)
+		|| (val >=  OS15_OPERATOR_RING_START && val <= OS15_OPERATOR_RING_END)
 		|| (val >=  ALCLOUDSCAPE_START && val <= ALCLOUDSCAPE_END)
 		|| (val >=  RINGTONE_NOTIF_ALARM_START && val <= RINGTONE_NOTIF_ALARM_END)
 		|| val == RINGTONES_SIMPLE_INDEX
@@ -3870,10 +3872,10 @@ static const char* get_rtp_name(uint32_t id, uint32_t f0) {
 		hp_err("%s: f0 is %d, not found suffix.\n", __func__, f0);
 		return NULL;
 	}
-    if (id >= 0 && id < NUM_WAVEFORMS)
-        wave_name = rtp_wave_map[id];
-    else
-        hp_err("%s: id is %d, out of range.\n", __func__, id);
+	if (id > 0 && id < NUM_WAVEFORMS)
+		wave_name = rtp_wave_map[id];
+	else
+		hp_err("%s: id is %d, out of range.\n", __func__, id);
 	if (!wave_name) {
 		hp_err("%s: id is %d, not found wave name.\n", __func__, id);
 		return NULL;

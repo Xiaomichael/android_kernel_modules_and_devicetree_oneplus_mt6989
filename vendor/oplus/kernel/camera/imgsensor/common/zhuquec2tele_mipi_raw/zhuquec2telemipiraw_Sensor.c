@@ -786,7 +786,6 @@ static struct mtk_mbus_frame_desc_entry frame_desc_cus19[] = {
 			.hsize = 4096,
 			.vsize = 3072,
 			.user_data_desc = VC_STAGGER_NE,
-			//.fs_seq = MTK_FRAME_DESC_FS_SEQ_FIRST,
 		},
 	},
 	{
@@ -800,13 +799,12 @@ static struct mtk_mbus_frame_desc_entry frame_desc_cus19[] = {
 	},
 	{
 		.bus.csi2 = {
-			.channel = 0,
+			.channel = 1,
 			.data_type = 0x30,
 			.hsize = 4096,
 			.vsize = 768,
-			.user_data_desc = VC_PDAF_STATS_NE_PIX_1,
+			.user_data_desc = VC_PDAF_STATS_ME_PIX_1,
 			.dt_remap_to_type = MTK_MBUS_FRAME_DESC_REMAP_TO_RAW10,
-			//.fs_seq = MTK_FRAME_DESC_FS_SEQ_LAST,
 		},
 	},
 };

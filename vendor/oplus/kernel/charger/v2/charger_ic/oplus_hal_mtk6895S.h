@@ -540,6 +540,7 @@ struct mtk_charger {
 	bool cp_btb_temp_share;
 	bool support_subboard_ntc;
 	bool pd_svooc;
+	int sub_board_pull_up_r;
 
 	struct tcpc_device *tcpc;
 	struct adapter_power_cap srccap;

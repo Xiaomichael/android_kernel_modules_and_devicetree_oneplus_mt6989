@@ -33,3 +33,5 @@ oplus_camera_sy7806e_zhuquec2-objs += sy7806e_zhuquec2.o
 obj-m += oplus_camera_sy7806e_zhuquec2.o
 oplus_camera_sy7806e_honda-objs += sy7806e_honda.o
 obj-m += oplus_camera_sy7806e_honda.o
+oplus_camera_sy7806e_baikalm-objs += sy7806e_baikalm.o
+obj-m += oplus_camera_sy7806e_baikalm.o

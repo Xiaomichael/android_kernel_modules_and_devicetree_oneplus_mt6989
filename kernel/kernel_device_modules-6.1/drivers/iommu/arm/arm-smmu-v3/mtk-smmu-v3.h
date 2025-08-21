@@ -548,6 +548,7 @@ struct mtk_smmu_data {
 	u32				irq_cnt;
 	unsigned long			irq_first_jiffies;
 	struct timer_list		irq_pause_timer;
+	atomic_t			ras_detected;
 };
 
 enum mtk_smmu_tfm_type {

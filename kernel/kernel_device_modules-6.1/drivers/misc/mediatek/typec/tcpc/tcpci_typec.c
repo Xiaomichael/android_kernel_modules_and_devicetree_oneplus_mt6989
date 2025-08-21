@@ -606,7 +606,7 @@ static bool typec_try_norp_src(struct tcpc_device *tcpc)
 
 		if (tcpci_check_vbus_valid(tcpc) &&
 		    typec_is_cc_no_res()) {
-			TYPEC_INFO("norp_src=1\n");
+			TYPEC_DBG("norp_src=1\n");
 			tcpc_enable_timer(tcpc, TYPEC_TIMER_NORP_SRC);
 			return true;
 		}
@@ -617,14 +617,14 @@ static bool typec_try_norp_src(struct tcpc_device *tcpc)
 	if (tcpc->typec_state == typec_attached_norp_src) {
 		if (typec_is_cc_no_res()) {
 			if (tcpci_check_vbus_valid(tcpc)) {
-				TYPEC_INFO("keep norp_src\n");
+				TYPEC_DBG("keep norp_src\n");
 			} else {
-				TYPEC_INFO("norp_src=0\n");
+				TYPEC_DBG("norp_src=0\n");
 				typec_unattach_wait_pe_idle_entry(tcpc);
 				typec_alert_attach_state_change(tcpc);
 			}
 		} else if (!typec_is_cable_only()) {
-			TYPEC_INFO("enter attachwait from norp_src\n");
+			TYPEC_DBG("enter attachwait from norp_src\n");
 			typec_attach_new_unattached(tcpc);
 			if (tcpc_typec_is_act_as_sink_role(tcpc))
 				TYPEC_NEW_STATE(typec_unattached_snk);
@@ -913,6 +913,7 @@ static inline bool typec_cc_change_source_entry(struct tcpc_device *tcpc)
 static inline bool typec_attached_snk_cc_change(struct tcpc_device *tcpc)
 {
 	uint8_t cc_res = typec_get_cc_res();
+	bool changed = false;
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 	struct pd_port *pd_port = &tcpc->pd_port;
 #endif	/* CONFIG_USB_POWER_DELIVERY */
@@ -920,20 +921,20 @@ static inline bool typec_attached_snk_cc_change(struct tcpc_device *tcpc)
 	if (cc_res != tcpc->typec_remote_rp_level) {
 		TYPEC_INFO("RpLvl Change\n");
 		tcpc->typec_remote_rp_level = cc_res;
-
+		changed = true;
+	}
 #if CONFIG_USB_PD_REV30
-		if (pd_port->pe_data.pd_connected && pd_check_rev30(pd_port) &&
-		    cc_res == TYPEC_CC_VOLT_SNK_3_0)
-			pd_put_sink_tx_event(tcpc, cc_res);
+	if (pd_port->pe_data.pd_connected && pd_check_rev30(pd_port) &&
+		cc_res == TYPEC_CC_VOLT_SNK_3_0)
+		pd_put_sink_tx_event(tcpc, cc_res);
 #endif	/* CONFIG_USB_PD_REV30 */
 
+	if (changed)
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 		if (!pd_port->pe_data.pd_connected)
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 			tcpci_sink_vbus(tcpc,
 				TCP_VBUS_CTRL_TYPEC, TCPC_VBUS_SINK_5V, -1);
-
-	}
 
 	return true;
 }
@@ -1028,8 +1029,8 @@ static inline bool typec_handle_cc_changed_entry(struct tcpc_device *tcpc)
 static inline void typec_attach_wait_entry(struct tcpc_device *tcpc)
 {
 	bool as_sink = tcpc_typec_is_act_as_sink_role(tcpc);
-	uint8_t cc_res = typec_get_cc_res();
 #if CONFIG_USB_PD_REV30
+	uint8_t cc_res = typec_get_cc_res();
 	struct pd_port *pd_port = &tcpc->pd_port;
 #endif	/* CONFIG_USB_PD_REV30 */
 
@@ -1050,11 +1051,6 @@ static inline void typec_attach_wait_entry(struct tcpc_device *tcpc)
 	case typec_attached_dbgacc_snk:
 #endif	/* CONFIG_TYPEC_CAP_DBGACC_SNK */
 	case typec_attached_custom_src:
-		if (cc_res == tcpc->typec_remote_rp_level) {
-			tcpc_reset_typec_debounce_timer(tcpc);
-			TYPEC_DBG("The Same RpLvl, Ignore cc_attach\n");
-			return;
-		}
 		TYPEC_INFO("RpLvl Alert\n");
 #if CONFIG_USB_PD_REV30
 		if (pd_port->pe_data.pd_connected && pd_check_rev30(pd_port) &&
@@ -2055,10 +2051,10 @@ int tcpc_typec_handle_fod(struct tcpc_device *tcpc, enum tcpc_fod_status fod)
 	enum tcpc_fod_status fod_old = tcpc->typec_fod;
 	uint8_t typec_state = tcpc->typec_state;
 
-	TCPC_INFO("%s fod (%d, %d)\n", __func__, fod_old, fod);
-
 	if (!(tcpc->tcpc_flags & TCPC_FLAGS_FOREIGN_OBJECT_DETECTION))
 		return 0;
+
+	TCPC_INFO("%s fod (%d, %d)\n", __func__, fod_old, fod);
 
 	if (fod_old == fod)
 		return 0;
@@ -2100,10 +2096,10 @@ int tcpc_typec_handle_otp(struct tcpc_device *tcpc, bool otp)
 {
 	int ret = 0;
 
-	TCPC_INFO("%s otp (%d, %d)\n", __func__, tcpc->typec_otp, otp);
-
 	if (!(tcpc->tcpc_flags & TCPC_FLAGS_TYPEC_OTP))
 		return 0;
+
+	TCPC_INFO("%s otp (%d, %d)\n", __func__, tcpc->typec_otp, otp);
 
 	if (tcpc->typec_otp == otp)
 		return 0;
@@ -2125,10 +2121,10 @@ EXPORT_SYMBOL(tcpc_typec_handle_otp);
 int tcpc_typec_handle_ctd(struct tcpc_device *tcpc,
 			  enum tcpc_cable_type cable_type)
 {
-	TCPC_DBG("%s: cable_type = %d\n", __func__, cable_type);
-
 	if (!(tcpc->tcpc_flags & TCPC_FLAGS_CABLE_TYPE_DETECTION))
 		return 0;
+
+	TCPC_DBG("%s: cable_type = %d\n", __func__, cable_type);
 
 	if (tcpc->tcpc_flags & TCPC_FLAGS_FOREIGN_OBJECT_DETECTION) {
 		if ((cable_type == TCPC_CABLE_TYPE_C2C) &&

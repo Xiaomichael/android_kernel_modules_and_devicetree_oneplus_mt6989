@@ -28,6 +28,9 @@ struct mtk_drm_esd_ctx {
 	u32 chk_sta;
 	u32 chk_en;
 	u32 chk_retry;
+#ifdef OPLUS_FEATURE_DISPLAY
+	unsigned int esd_check_cnt;
+#endif
 };
 int mtk_drm_esd_testing_process(struct mtk_drm_esd_ctx *esd_ctx, bool need_lock);
 

@@ -70,6 +70,18 @@
 #define ALPHAHMONO_SENSOR_ID                          0x4331     /*(0x02e0 + SENSOR_ID_OFFSET_ALPHAH) */
 #define SENSOR_DRVNAME_ALPHAHMONO_MIPI_RAW            "alphahmono_mipi_raw"
 
+#define SENSOR_ID_OFFSET_BAIKALM                         0x0111
+#define BAIKALMMAIN_SENSOR_ID                            0x5155  /*(0x5044 + SENSOR_ID_OFFSET_BAIKALM) */
+#define SENSOR_DRVNAME_BAIKALMMAIN_MIPI_RAW             "baikalmmain_mipi_raw"
+#define BAIKALMFRONT_SENSOR_ID                           0x09B9  /*(0x08A8 + SENSOR_ID_OFFSET_BAIKALM) */
+#define SENSOR_DRVNAME_BAIKALMFRONT_MIPI_RAW            "baikalmfront_mipi_raw"
+#define BAIKALMFRONT2_SENSOR_ID                          0x321B  /*(0x3109 + SENSOR_ID_OFFSET_BAIKALM) */
+#define SENSOR_DRVNAME_BAIKALMFRONT2_MIPI_RAW           "baikalmfront2_mipi_raw"
+#define BAIKALMFRONT3_SENSOR_ID                          0x0582     /*(0x0471 + SENSOR_ID_OFFSET_BAIKALM) */
+#define SENSOR_DRVNAME_BAIKALMFRONT3_MIPI_RAW           "baikalmfront3_mipi_raw"
+#define BAIKALMMONO_SENSOR_ID                            0x013C  /*(0x002B + SENSOR_ID_OFFSET_BAIKALM) */
+#define SENSOR_DRVNAME_BAIKALMMONO_MIPI_RAW             "baikalmmono_mipi_raw"
+
 #define SENSOR_ID_OFFSET_CASIOX                          0x0002
 #define CASIOXMAIN_SENSOR_ID                             0x0884     /*(0x0882 + SENSOR_ID_OFFSET_CASIOX) */
 #define SENSOR_DRVNAME_CASIOXMAIN_MIPI_RAW               "casioxmain_mipi_raw"
@@ -87,6 +99,10 @@
 #define SENSOR_DRVNAME_CASIOYMAIN_MIPI_RAW               "casioymain_mipi_raw"
 #define CASIOYFRONT_SENSOR_ID                            0x32E5     /*(0x32E2 + SENSOR_ID_OFFSET_CASIOY) */
 #define SENSOR_DRVNAME_CASIOYFRONT_MIPI_RAW              "casioyfront_mipi_raw"
+#define CASIOYFRONT2_SENSOR_ID                           0x5047     /*(0x5044 + SENSOR_ID_OFFSET_CASIOY) */
+#define SENSOR_DRVNAME_CASIOYFRONT2_MIPI_RAW             "casioyfront2_mipi_raw"
+#define CASIOYUWIDE_SENSOR_ID                            0x560B     /*(0x5608 + SENSOR_ID_OFFSET_CASIOY) */
+#define SENSOR_DRVNAME_CASIOYUWIDE_MIPI_RAW              "casioyuwide_mipi_raw"
 #define CASIOYMONO_SENSOR_ID                             0xeb55     /*(0xeb52 + SENSOR_ID_OFFSET_CASIOY) */
 #define SENSOR_DRVNAME_CASIOYMONO_MIPI_RAW               "casioymono_mipi_raw"
 

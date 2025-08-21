@@ -126,5 +126,7 @@ obj-y += drivers/misc/oplus/oplus_gpio/
 
 obj-y += drivers/soc/oplus/storage/
 
+obj-y += drivers/soc/oplus/storage/common/file_record
+
 obj-$(CONFIG_OPLUS_MAGCVR_NOTIFY) += drivers/base/magtransfer/
 endif

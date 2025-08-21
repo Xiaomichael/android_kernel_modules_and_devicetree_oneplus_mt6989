@@ -204,6 +204,7 @@ struct kernel_loglevel {
 #define PANEL_IOCTL_GET_DRE_STATUS               PANEL_IOWR(0x5C, unsigned int)
 #define PANEL_IOCTL_SET_DYNAMIC_TE               PANEL_IOWR(0x5D, unsigned int)
 #define PANEL_IOCTL_GET_DYNAMIC_TE               PANEL_IOWR(0x5E, unsigned int)
+#define PANEL_IOCTL_GET_IRIS_LOOP_STATUS         PANEL_IOWR(0x5F, unsigned int)
 #define PANEL_IOCTL_SET_PQ_TRIGGER               PANEL_IOW(0x62, unsigned int)
 #define PANEL_IOCTL_GET_PQ_TRIGGER               PANEL_IOWR(0x63, unsigned int)
 #define PANEL_IOCTL_SET_FP_TYPE                  PANEL_IOW(0x64, unsigned int)

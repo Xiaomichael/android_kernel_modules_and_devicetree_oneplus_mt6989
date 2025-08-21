@@ -54,6 +54,10 @@
 #define oplus_tchg_01c_precision oplus_tchg_01c_precision_v2
 #define oplus_force_get_subboard_temp oplus_force_get_subboard_temp_v2
 #define oplus_get_hmac oplus_get_hmac_v2
+#if IS_ENABLED(CONFIG_OPLUS_MT6789_CHARGER) || IS_ENABLED(CONFIG_OPLUS_MT6835_CHARGER)
+#define oplus_chg_check_ui_soc_is_ready oplus_chg_check_ui_soc_is_ready_v2
+#define set_chr_enable_otg set_chr_enable_otg_v2
+#endif
 
 #endif /* CONFIG_OPLUS_CHARGER_MTK && CONFIG_OPLUS_CHG_V2 */
 

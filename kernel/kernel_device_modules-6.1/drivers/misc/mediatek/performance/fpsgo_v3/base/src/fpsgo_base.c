@@ -986,6 +986,8 @@ void fpsgo_reset_attr(struct fpsgo_boost_attr *boost_attr)
 		boost_attr->gcc_deq_bound_thrs_by_pid = BY_PID_DEFAULT_VAL;
 		boost_attr->gcc_enq_bound_quota_by_pid = BY_PID_DEFAULT_VAL;
 		boost_attr->gcc_deq_bound_quota_by_pid = BY_PID_DEFAULT_VAL;
+		boost_attr->target_time_up_bound_by_pid = BY_PID_DEFAULT_VAL;
+		boost_attr->target_time_low_bound_by_pid = BY_PID_DEFAULT_VAL;
 		boost_attr->blc_boost_by_pid = BY_PID_DEFAULT_VAL;
 		boost_attr->boost_vip_by_pid = BY_PID_DEFAULT_VAL;
 		boost_attr->rt_prio1_by_pid = BY_PID_DEFAULT_VAL;
@@ -1327,6 +1329,8 @@ int is_to_delete_fpsgo_attr(struct fpsgo_attr_by_pid *fpsgo_attr)
 			boost_attr.quota_v2_diff_clamp_min_by_pid == BY_PID_DEFAULT_VAL &&
 			boost_attr.quota_v2_diff_clamp_max_by_pid == BY_PID_DEFAULT_VAL &&
 			boost_attr.limit_min_cap_target_t_by_pid == BY_PID_DEFAULT_VAL &&
+			boost_attr.target_time_up_bound_by_pid == BY_PID_DEFAULT_VAL &&
+			boost_attr.target_time_low_bound_by_pid == BY_PID_DEFAULT_VAL &&
 			boost_attr.rl_deq_length_thres_by_pid == BY_PID_DEFAULT_VAL &&
 			boost_attr.aa_b_minus_idle_t_by_pid == BY_PID_DEFAULT_VAL &&
 			boost_attr.limit_cfreq2cap_by_pid == BY_PID_DEFAULT_VAL &&
@@ -2817,6 +2821,9 @@ int fpsgo_get_lr_pair(unsigned long long sf_buffer_id,
 
 	cur_l2q_info = &(curr_iter->l2q_info[buf_index]);
 
+	if (!cur_l2q_info)
+		goto out;
+
 	if (logic_head_ts)
 		*logic_head_ts = cur_l2q_info->logic_head_fixed_ts;
 	if (cur_queue_ts)
@@ -3103,7 +3110,7 @@ static ssize_t render_info_params_show(struct kobject *kobj,
 				" boost_VIP, RT_prio1, RT_prio2, RT_prio3, vip_mask, set_ls, ls_groupmask, set_vvip\n");
 	pos += length;
 	length = scnprintf(temp + pos, FPSGO_SYSFS_MAX_BUFF_SIZE - pos,
-				" aa_b_minus_idle_time, engine_cooler_enable\n");
+				" aa_b_minus_idle_time, engine_cooler_enable, target_time_up_bound, target_time_low_bound\n\n");
 	pos += length;
 
 	fpsgo_render_tree_lock(__func__);
@@ -3245,9 +3252,11 @@ static ssize_t render_info_params_show(struct kobject *kobj,
 			pos += length;
 
 			length = scnprintf(temp + pos,
-				FPSGO_SYSFS_MAX_BUFF_SIZE - pos, " %4d, %4d\n",
+				FPSGO_SYSFS_MAX_BUFF_SIZE - pos, " %4d, %4d, %4d, %4d\n",
 				attr_item.aa_b_minus_idle_t_by_pid,
-				attr_item.engine_cooler_enable_by_pid);
+				attr_item.engine_cooler_enable_by_pid,
+				attr_item.target_time_up_bound_by_pid,
+				attr_item.target_time_low_bound_by_pid);
 			pos += length;
 			put_task_struct(tsk);
 		}
@@ -3322,7 +3331,7 @@ static ssize_t render_attr_params_show(struct kobject *kobj,
 				" boost_VIP, RT_prio1, RT_prio2, RT_prio3, vip_mask, set_ls, ls_groupmask, set_vvip\n");
 	pos += length;
 	length = scnprintf(temp + pos, FPSGO_SYSFS_MAX_BUFF_SIZE - pos,
-				" aa_b_minus_idle_time\n");
+				" aa_b_minus_idle_time, target_time_up_bound, target_time_low_bound\n");
 	pos += length;
 
 	fpsgo_render_tree_lock(__func__);
@@ -3430,8 +3439,10 @@ static ssize_t render_attr_params_show(struct kobject *kobj,
 		pos += length;
 
 		length = scnprintf(temp + pos,
-			FPSGO_SYSFS_MAX_BUFF_SIZE - pos, " %4d\n",
-			attr_item.aa_b_minus_idle_t_by_pid);
+			FPSGO_SYSFS_MAX_BUFF_SIZE - pos, " %4d, %4d, %4d\n",
+			attr_item.aa_b_minus_idle_t_by_pid,
+			attr_item.target_time_up_bound_by_pid,
+			attr_item.target_time_low_bound_by_pid);
 		pos += length;
 	}
 

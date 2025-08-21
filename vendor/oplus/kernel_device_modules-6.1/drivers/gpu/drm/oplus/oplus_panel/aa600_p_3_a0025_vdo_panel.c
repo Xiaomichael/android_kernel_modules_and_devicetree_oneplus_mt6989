@@ -63,6 +63,7 @@ static int current_fps = 120;
 static unsigned int temp_seed_mode = 0;
 static int mode_id = -1;
 extern unsigned int m_db;
+static unsigned int lhbm_last_backlight = 0;
 //static bool aod_state = false;
 
 #define MAX_NORMAL_BRIGHTNESS   3515
@@ -71,6 +72,8 @@ extern unsigned int m_db;
 
 extern void lcdinfo_notify(unsigned long val, void *v);
 extern int oplus_display_panel_dbv_probe(struct device *dev);
+extern void mipi_dsi_dcs_write_gce_delay(struct mtk_dsi *dsi, struct cmdq_pkt *handle,
+				const void *data, size_t len);
 
 #define lcm_dcs_write_seq(ctx, seq...) \
 ({\
@@ -905,6 +908,7 @@ static int lcm_setbacklight_cmdq(void *dsi, dcs_write_gce cb, void *handle, unsi
 	cb(dsi, handle, bl_level, ARRAY_SIZE(bl_level));
 	DISP_ERR("aa600_p_3_a0025 backlight = %d bl_level[1]=%x, bl_level[2]=%x\n", level, bl_level[1], bl_level[2]);
 	oplus_display_brightness = level;
+	lhbm_last_backlight = level;
 	lcdinfo_notify(LCM_BRIGHTNESS_TYPE, &level);
 
 	if (lhbm_70nit_off_action == 0 && demura_tap != 3) {
@@ -955,7 +959,7 @@ static int oplus_esd_backlight_recovery(void *dsi, dcs_write_gce cb, void *handl
 	esd_bl_level[1] = level >> 8;
 	esd_bl_level[2] = level & 0xFF;
 	cb(dsi, handle, esd_bl_level, ARRAY_SIZE(esd_bl_level));
-
+	lhbm_last_backlight = level;
 	DISP_ERR("esd_bl_level[1]=%x, esd_bl_level[2]=%x backlight = %d\n", esd_bl_level[1], esd_bl_level[2], level);
 
 	if (lhbm_70nit_off_action == 0 && demura_tap != 3) {
@@ -1064,8 +1068,8 @@ static int oplus_ofp_set_lhbm_pressed_icon(struct drm_panel *panel, void *dsi,
 		return -EINVAL;
 	}
 
-	OFP_INFO("%s,oplus_display_brightness=%d, hbm_mode=%d, mode_id=%d,  m_db = %d\n",
-			 __func__, oplus_display_brightness, en, mode_id, m_db);
+	OFP_INFO("%s,oplus_display_brightness=%d, hbm_mode=%d, mode_id=%d, m_db = %d,lhbm_last_backlight %d\n",
+			 __func__, oplus_display_brightness, en, mode_id, m_db, lhbm_last_backlight);
 	if (en) {
 		if(m_db < 3) {
 			if (mode_id == FHD_SDC60) {
@@ -1081,13 +1085,13 @@ static int oplus_ofp_set_lhbm_pressed_icon(struct drm_panel *panel, void *dsi,
 		} else {
 			demura_tap = 3;
 			OFP_ERR("[LHBM_OFF_ACTION] set demura_tap = 3\n");
-			if(oplus_display_brightness <= 0x47A) {
+			if(lhbm_last_backlight <= 0x47A) {
 				reg_count = sizeof(lhbm_pressed_icon_on_cmd_70nit) / sizeof(struct LCM_setting_table);
 				lhbm_pressed_icon_cmd = lhbm_pressed_icon_on_cmd_70nit;
-			}else if (oplus_display_brightness <= 0xDBB && oplus_display_brightness > 0x47A) {
+			}else if (lhbm_last_backlight <= 0xDBB && lhbm_last_backlight > 0x47A) {
 				reg_count = sizeof(lhbm_pressed_icon_on_cmd_800nit) / sizeof(struct LCM_setting_table);
 				lhbm_pressed_icon_cmd = lhbm_pressed_icon_on_cmd_800nit;
-			}else if (oplus_display_brightness <= 0xFFF && oplus_display_brightness > 0xDBB) {
+			}else if (lhbm_last_backlight <= 0xFFF && lhbm_last_backlight > 0xDBB) {
 				reg_count = sizeof(lhbm_pressed_icon_on_cmd_1300nit) / sizeof(struct LCM_setting_table);
 				lhbm_pressed_icon_cmd = lhbm_pressed_icon_on_cmd_1300nit;
 			}
@@ -1233,11 +1237,21 @@ static struct vdo_aod_params vdo_aod_to_120hz_unlocking = {
 
 };
 
+
 static struct vdo_aod_params vdo_aod_to_90hz = {
         .porch_change_flag = 0x03,
         .dst_hfp = 180,
         .dst_vfp = 912,
         .vdo_aod_cmd_table[0]={1, {0x38}},
+
+};
+
+static struct vdo_aod_params vdo_aod_to_90hz_unlocking = {
+        .porch_change_flag = 0x03,
+        .dst_hfp = 180,
+        .dst_vfp = 912,
+        .vdo_aod_cmd_table[0]={1, {0x38}},
+	.vdo_aod_cmd_table[1]={3, {0x51, 0x00, 0x00}},
 
 };
 
@@ -1262,6 +1276,7 @@ static int mtk_get_vdo_aod_param(int aod_en, struct vdo_aod_params **vdo_aod_par
 {
 	static int mode_id_before_aod = 2;
 	if(aod_en) {
+		atomic_set(&esd_pending, 1);
 		*vdo_aod_param = &vdo_aod_on;
 		mode_id_before_aod = mode_id;
 	} else {
@@ -1274,8 +1289,12 @@ static int mtk_get_vdo_aod_param(int aod_en, struct vdo_aod_params **vdo_aod_par
 			}
 		}
 		else if (mode_id_before_aod == FHD_SDC90) {
-			*vdo_aod_param = &vdo_aod_to_90hz;
-			OFP_INFO("%s:before mode_id %d\n", __func__, mode_id_before_aod);
+			if (oplus_ofp_get_aod_unlocking())
+				*vdo_aod_param = &vdo_aod_to_90hz_unlocking;
+			else {
+				*vdo_aod_param = &vdo_aod_to_90hz;
+				OFP_INFO("%s:before mode_id %d\n", __func__, mode_id_before_aod);
+			}
 		}
 		else {
 			if(oplus_ofp_get_aod_unlocking())
@@ -1285,6 +1304,8 @@ static int mtk_get_vdo_aod_param(int aod_en, struct vdo_aod_params **vdo_aod_par
 				OFP_INFO("%s:before mode_id %d\n", __func__, mode_id_before_aod);
 			}
 		}
+		atomic_set(&esd_pending, 0);
+		lhbm_last_backlight = 0;
 	}
 	OFP_INFO("%s:aod_en %d, mode_id %d, unlocking =%d\n", __func__, aod_en, mode_id, oplus_ofp_get_aod_unlocking());
 	return 0;

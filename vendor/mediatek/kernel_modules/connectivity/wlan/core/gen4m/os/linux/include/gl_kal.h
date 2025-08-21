@@ -2346,11 +2346,12 @@ kalChannelFormatSwitch(struct cfg80211_chan_def *channel_def,
 		struct ieee80211_channel *channel,
 		struct RF_CHANNEL_INFO *prRfChnlInfo);
 
+uint8_t kal_napi_schedule(struct napi_struct *n);
+
 #if CFG_SUPPORT_RX_GRO
 uint8_t kalRxGroInit(struct net_device *prDev);
 uint32_t kal_is_skb_gro(struct ADAPTER *prAdapter, uint8_t ucBssIdx);
 void kal_gro_flush(struct ADAPTER *prAdapter);
-void kal_napi_schedule(struct napi_struct *n);
 int kalNapiPoll(struct napi_struct *napi, int budget);
 uint8_t kalNapiInit(struct GLUE_INFO *prGlueInfo);
 uint8_t kalNapiUninit(struct GLUE_INFO *prGlueInfo);

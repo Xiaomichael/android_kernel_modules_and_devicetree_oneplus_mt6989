@@ -64,7 +64,7 @@ int oplus_idle_cpu(int cpu)
 	return 1;
 }
 
-static inline int get_task_cls_for_scene(struct task_struct *task)
+inline int get_task_cls_for_scene(struct task_struct *task)
 {
 	struct ux_sched_cputopo ux_cputopo = ux_sched_cputopo;
 	int cls_max = ux_cputopo.cls_nr - 1;
@@ -80,13 +80,13 @@ static inline int get_task_cls_for_scene(struct task_struct *task)
 		cls_mid = cls_max;
 
 	/* for launch scene, heavy ux task should not move to min capacity cluster */
-	if (sched_assist_scene(SA_LAUNCH) && test_sched_assist_ux_type(task, SA_TYPE_HEAVY | SA_TYPE_ANIMATOR))
-		return test_sched_assist_ux_type(task, SA_TYPE_ANIMATOR) ? cls_mid : cls_max;
+	if (sched_assist_scene(SA_LAUNCH) && test_ux_type(task, SA_TYPE_HEAVY | SA_TYPE_ANIMATOR))
+		return test_ux_type(task, SA_TYPE_ANIMATOR) ? cls_mid : cls_max;
 
-	if (global_lowend_plat_opt && test_sched_assist_ux_type(task, SA_TYPE_HEAVY) && is_heavy_load_top_task(task))
+	if (global_lowend_plat_opt && test_ux_type(task, SA_TYPE_HEAVY) && is_heavy_load_top_task(task))
 		return cls_mid;
 
-	if (sched_assist_scene(SA_ANIM) && test_sched_assist_ux_type(task, SA_TYPE_ANIMATOR))
+	if (sched_assist_scene(SA_ANIM) && test_ux_type(task, SA_TYPE_ANIMATOR))
 		return is_task_util_over(task, BOOST_THRESHOLD_UNIT) ? cls_mid : 0;
 
 	if (sched_assist_scene(SA_LAUNCHER_SI))
@@ -174,7 +174,7 @@ static inline bool is_ux_task_prefer_cpu_for_scene(struct task_struct *task, uns
 static inline bool skip_rt_and_ux(struct task_struct *p)
 {
 	return !(sched_assist_scene(SA_LAUNCH) && p->pid == p->tgid
-		&& !test_sched_assist_ux_type(p, SA_TYPE_URGENT_MASK));
+		&& !test_ux_type(p, SA_TYPE_URGENT_MASK));
 }
 
 bool should_ux_task_skip_cpu(struct task_struct *task, unsigned int dst_cpu)
@@ -419,17 +419,19 @@ bool set_ux_task_to_prefer_cpu(struct task_struct *task, int *orig_target_cpu)
 	int start_cls = -1;
 	int cpu = 0;
 	int direction = -1;
-	int subopt_cpu = -1, vip_cpu = -1;
 	int orig_cls_id = 0;
 	cpumask_t search_cpus = CPU_MASK_NONE;
 	int max_spare_cap_cpu = -1;
 	int best_idle_cpu = -1;
-	unsigned long spare_cap = 0, max_spare_cap = 0;
-	unsigned long vip_max_spare_cap = 0;
-	unsigned long subopt_max_spare_cap = 0;
 	unsigned int min_exit_latency = UINT_MAX;
 	unsigned long best_idle_cuml_util = ULONG_MAX;
 	bool walk_next_cls = true;
+	bool ux_cls_boost = false;
+	int cpu_rq_ux_runnable_cnt = UINT_MAX;
+	int least_nr_cpu = -1;
+	int subopt_cpu = -1, vip_cpu = -1, max_subopt_cpu = -1;
+	long spare_cap = 0, subopt_max_spare_cap = 0;
+	long vip_max_spare_cap = -1, max_spare_cap = -1, rt_max_spare_cap = -1;
 
 	if (unlikely(!global_sched_assist_enabled))
 		return false;
@@ -451,6 +453,7 @@ bool set_ux_task_to_prefer_cpu(struct task_struct *task, int *orig_target_cpu)
 	}
 
 	start_cls = cls_nr = get_task_cls_for_scene(task);
+	ux_cls_boost = start_cls > 0 ? true : false;
 	/* Avoiding ux core selection can easily lead to small cores for tasks
 	 * that would otherwise be on large cores */
 	if (start_cls < orig_cls_id) {
@@ -474,7 +477,7 @@ retry:
 		orq = (struct oplus_rq *)rq->android_oem_data1;
 
 		/* fit status to check if taks util fits cpu capacity */
-		if (cls_nr == 0 && !task_fits_max(task, cpu))
+		if (cls_nr == 0 && (!task_fits_max(task, cpu) || ux_cls_boost))
 			break;
 
 		/*
@@ -504,18 +507,33 @@ retry:
 		if (best_idle_cpu != -1)
 			continue;
 
+		/*
+		 * case: The system runs on a heavy load picking no cpu, and prevent
+		 * EAS picking a small core, pick max_spare_cap cpu and first cluster
+		 */
 		spare_cap = oplus_capacity_spare_of(cpu, task);
+		if (spare_cap > subopt_max_spare_cap) {
+			subopt_max_spare_cap = spare_cap;
+			max_subopt_cpu = cpu;
+		}
+
+		/*
+		 * Keep track of runnables for each CPU, if none of the
+		 * CPUs have spare capacity then use CPU with less
+		 * number of ux runnables.
+		 */
+		if (orq->nr_running < cpu_rq_ux_runnable_cnt) {
+			cpu_rq_ux_runnable_cnt = orq->nr_running;
+			least_nr_cpu = cpu;
+		}
+
 		/*
 		 * strict_ux case: The system runs on a heavy load picking no cpu,
 		 * and prevent EAS picking a small core, pick max_spare_cap cpu
 		 * and first cluster
 		 */
-		if (walk_next_cls && strict_ux_task(task)) {
-			if (spare_cap > subopt_max_spare_cap) {
-				subopt_max_spare_cap = spare_cap;
-				subopt_cpu = cpu;
-			}
-		}
+		if (walk_next_cls && strict_ux_task(task))
+			subopt_cpu = cpu;
 
 		/* If an ux thread running on this CPU, drop it! */
 		if (oplus_get_ux_state(rq->curr) & SCHED_ASSIST_UX_MASK)
@@ -524,8 +542,13 @@ retry:
 		if (orq_has_ux_tasks(orq))
 			continue;
 
-		if (rq->curr->prio < MAX_RT_PRIO)
+		if (rq->curr->prio < MAX_RT_PRIO) {
+			if (spare_cap > rt_max_spare_cap) {
+				rt_max_spare_cap = spare_cap;
+				subopt_cpu = cpu;
+			}
 			continue;
+		}
 
 		/* If there are rt threads in runnable state on this CPU, drop it! */
 		if (rt_rq_is_runnable(&rq->rt))
@@ -572,8 +595,18 @@ retry:
 
 	walk_next_cls = false;
 	cls_nr = cls_nr + direction;
-	if (cls_nr > 0 && cls_nr < ux_cputopo.cls_nr)
-		goto retry;
+	if (global_lowend_plat_opt) {
+		if (cls_nr >= 0 && cls_nr < ux_cputopo.cls_nr) {
+			goto retry;
+		} else if (cls_nr == ux_cputopo.cls_nr && start_cls != 0) {
+			cls_nr = start_cls - 1;
+			direction = -1;
+			goto retry;
+		}
+	} else {
+		if (cls_nr > 0 && cls_nr < ux_cputopo.cls_nr)
+			goto retry;
+	}
 
 	/* 3 No cpu select, Preempt VIP threads, Priority: ux > VIP. */
 	if (vip_cpu != -1) {
@@ -585,12 +618,33 @@ retry:
 		return true;
 	}
 
+	/* 4 No cpu select, RT: max_spare_cap/strict_ux */
 	if (subopt_cpu != -1) {
 		trace_set_ux_task_to_prefer_cpu(task, "subopt",
 						*orig_target_cpu, subopt_cpu,
 						start_cls, cls_nr,
 						&search_cpus);
 		*orig_target_cpu = subopt_cpu;
+		return true;
+	}
+
+	/* 5 No cpu select, cpu:max_spare_cap */
+	if (max_subopt_cpu != -1) {
+		trace_set_ux_task_to_prefer_cpu(task, "spare_sub",
+						*orig_target_cpu, max_subopt_cpu,
+						start_cls, cls_nr,
+						&search_cpus);
+		*orig_target_cpu = max_subopt_cpu;
+		return true;
+	}
+
+	/* 6 No cpu select, Keep track of runnables for each CPU */
+	if (least_nr_cpu != -1) {
+		trace_set_ux_task_to_prefer_cpu(task, "nr_cpu",
+						*orig_target_cpu, least_nr_cpu,
+						start_cls, cls_nr,
+						&search_cpus);
+		*orig_target_cpu = least_nr_cpu;
 		return true;
 	}
 
@@ -642,14 +696,14 @@ void oplus_replace_next_task_fair(struct rq *rq, struct task_struct **p, struct 
 			continue;
 
 		if (unlikely(task_cpu(temp) != rq->cpu)) {
-			update_ux_timeline_task_removal(orq, ots);
+			update_ux_timeline_task_removal(orq, ots, NULL, false);
 			put_task_struct(temp);
 			DEBUG_BUG_ON(1);
 			continue;
 		}
 
 		if (unlikely(!test_task_ux(temp))) {
-			update_ux_timeline_task_removal(orq, ots);
+			update_ux_timeline_task_removal(orq, ots, NULL, false);
 			put_task_struct(temp);
 
 			/*
@@ -665,7 +719,7 @@ void oplus_replace_next_task_fair(struct rq *rq, struct task_struct **p, struct 
 		}
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_AUDIO_OPT)
 		if (is_audio_scene() && test_bit(IM_FLAG_AUDIO_CAMERA_HAL, &ots->im_flag)) {
-			update_ux_timeline_task_removal(orq, ots);
+			update_ux_timeline_task_removal(orq, ots, NULL, false);
 			put_task_struct(temp);
 			continue;
 		}

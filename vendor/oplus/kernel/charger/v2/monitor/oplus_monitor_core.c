@@ -693,12 +693,36 @@ static void oplus_monitor_ufcs_subs_callback(struct mms_subscribe *subs,
 			if (rc < 0)
 				break;
 			chip->ufcs_adapter_id = (u32)data.intval;
+			if (chip->ufcs_adapter_id > 0)
+				chip->pre_ufcs_adapter_id = chip->ufcs_adapter_id;
 			break;
 		case UFCS_ITEM_OPLUS_ADAPTER:
 			rc = oplus_mms_get_item_data(chip->ufcs_topic, id, &data, false);
 			if (rc < 0)
 				break;
 			chip->ufcs_oplus_adapter = !!data.intval;
+			if (chip->ufcs_oplus_adapter > 0)
+				chip->pre_ufcs_oplus_adapter = chip->ufcs_oplus_adapter;
+			break;
+		case UFCS_ITEM_EMARK_POWER:
+			rc = oplus_mms_get_item_data(chip->ufcs_topic, id, &data, false);
+			if (rc < 0)
+				break;
+			chip->ufcs_emark_power = data.intval;
+			if (chip->ufcs_emark_power > 0) {
+				chip->pre_ufcs_emark_power = chip->ufcs_emark_power;
+				oplus_chg_track_handle_wired_type_info(chip, TRACK_CHG_GET_THTS_TIME_TYPE);
+			}
+			break;
+		case UFCS_ITEM_ADAPTER_POWER:
+			rc = oplus_mms_get_item_data(chip->ufcs_topic, id, &data, false);
+			if (rc < 0)
+				break;
+			chip->ufcs_adapter_power = data.intval;
+			if (chip->ufcs_adapter_power > 0) {
+				chip->pre_ufcs_adapter_power = chip->ufcs_adapter_power;
+				oplus_chg_track_handle_wired_type_info(chip, TRACK_CHG_GET_THTS_TIME_TYPE);
+			}
 			break;
 		default:
 			break;
@@ -730,15 +754,38 @@ static void oplus_monitor_subscribe_ufcs_topic(struct oplus_mms *topic,
 	rc = oplus_mms_get_item_data(chip->ufcs_topic, UFCS_ITEM_ONLINE, &data, true);
 	if (rc >= 0)
 		chip->ufcs_online = !!data.intval;
+
 	rc = oplus_mms_get_item_data(chip->ufcs_topic, UFCS_ITEM_CHARGING, &data, true);
 	if (rc >= 0)
 		chip->ufcs_charging = !!data.intval;
+
 	rc = oplus_mms_get_item_data(chip->ufcs_topic, UFCS_ITEM_ADAPTER_ID, &data, true);
-	if (rc >= 0)
+	if (rc >= 0) {
 		chip->ufcs_adapter_id = (u32)data.intval;
+		chip->pre_ufcs_adapter_id = chip->ufcs_adapter_id;
+	}
+
 	rc = oplus_mms_get_item_data(chip->ufcs_topic, UFCS_ITEM_OPLUS_ADAPTER, &data, true);
-	if (rc >= 0)
+	if (rc >= 0) {
 		chip->ufcs_oplus_adapter = !!data.intval;
+		chip->pre_ufcs_oplus_adapter = chip->ufcs_oplus_adapter;
+	}
+
+	rc = oplus_mms_get_item_data(chip->ufcs_topic, UFCS_ITEM_EMARK_POWER, &data, true);
+	if (rc >= 0) {
+		chip->ufcs_emark_power = data.intval;
+		chip->pre_ufcs_emark_power = chip->ufcs_emark_power;
+	}
+
+	rc = oplus_mms_get_item_data(chip->ufcs_topic, UFCS_ITEM_ADAPTER_POWER, &data, true);
+	if (rc >= 0) {
+		chip->ufcs_adapter_power = data.intval;
+		chip->pre_ufcs_adapter_power = chip->ufcs_adapter_power;
+	}
+
+	if (chip->ufcs_emark_power > 0 || chip->ufcs_adapter_power > 0)
+		oplus_chg_track_handle_wired_type_info(chip, TRACK_CHG_GET_THTS_TIME_TYPE);
+
 }
 
 static void oplus_monitor_plc_subs_callback(struct mms_subscribe *subs,
@@ -1980,6 +2027,26 @@ static struct mms_item oplus_monitor_item[] = {
 	{
 		.desc = {
 			.item_id = ERR_ITEM_DEC_CV_INFO,
+			.str_data = true,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = NULL,
+		}
+	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_LPD,
+			.str_data = true,
+			.up_thr_enable = false,
+			.down_thr_enable = false,
+			.dead_thr_enable = false,
+			.update = NULL,
+		}
+	},
+	{
+		.desc = {
+			.item_id = ERR_ITEM_PPS,
 			.str_data = true,
 			.up_thr_enable = false,
 			.down_thr_enable = false,

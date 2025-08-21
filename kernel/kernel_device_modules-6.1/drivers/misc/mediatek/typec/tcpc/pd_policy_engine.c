@@ -956,16 +956,11 @@ static inline void print_state(
 	bool __maybe_unused vdm_evt = pd_curr_is_vdm_evt(pd_port);
 	struct tcpc_device __maybe_unused *tcpc = pd_port->tcpc;
 
-#if PE_DBG_ENABLE
-	PE_DBG("%s -> %s (%c%c%c)\n",
+	PE_STATE_INFO("%s -> %s (%c%c%c)\n",
 		vdm_evt ? "VDM" : "PD", pe_state_name[state],
 		pd_port->power_role ? 'P' : 'C',
 		pd_port->data_role ? 'D' : 'U',
 		pd_port->vconn_role ? 'Y' : 'N');
-#else
-	PE_STATE_INFO("%s-> %s\n",
-		vdm_evt ? "VDM" : "PD", pe_state_name[state]);
-#endif	/* PE_DBG_ENABLE */
 }
 
 static inline void pe_reset_vdm_state_variable(

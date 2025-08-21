@@ -1060,6 +1060,11 @@ struct mtk_drm_crtc {
 	unsigned int mode_change_index;
 	int mode_idx;
 	int mode_chg;
+#ifdef OPLUS_FEATURE_DISPLAY
+	bool set_mmclk_by_mode;
+	int fake_mode_idx;
+	bool skip_mmclk_set_flag;
+#endif
 	enum RES_SWITCH_TYPE res_switch;
 	struct mtk_scaling_ctx scaling_ctx;
 	int fbt_layer_id;
@@ -1567,6 +1572,6 @@ void mtk_crtc_addon_connector_rst(struct drm_crtc *crtc, struct cmdq_pkt *cmdq_h
 void mtk_crtc_default_path_rst(struct drm_crtc *crtc, struct cmdq_pkt *cmdq_handle);
 void mtk_crtc_rst_module(struct drm_crtc *crtc);
 void mtk_crtc_init_hrt_usage(struct drm_crtc *crtc);
-
+void mml_cmdq_pkt_init(struct drm_crtc *crtc, struct cmdq_pkt *cmdq_handle);
 
 #endif /* MTK_DRM_CRTC_H */

@@ -358,6 +358,10 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 	case TCP_NOTIFY_CC_HI:
 		dev_info(rpmd->dev, "%s cc_hi = %d\n", __func__, noti->cc_hi);
 		break;
+	case TCP_NOTIFY_ALERT_RATELIMITED:
+		dev_info(rpmd->dev, "%s alert_ratelimited = %d\n",
+				    __func__, noti->alert_ratelimited);
+		break;
 	default:
 		break;
 	}

@@ -134,7 +134,7 @@ static int tcpci_alert_tx_discard(struct tcpc_device *tcpc)
 	bool retry_crc_discard =
 		!!(tcpc->tcpc_flags & TCPC_FLAGS_RETRY_CRC_DISCARD);
 
-	TCPC_INFO("Discard\n");
+	TCPC_DBG("Discard\n");
 
 	mutex_lock(&tcpc->access_lock);
 	tcpc->io_time_diff = 0;
@@ -192,7 +192,7 @@ static int tcpci_alert_recv_msg_put_event(struct tcpc_device *tcpc)
 
 static int tcpci_alert_rx_overflow(struct tcpc_device *tcpc)
 {
-	TCPC_INFO("RX_OVERFLOW\n");
+	TCPC_DBG("RX_OVERFLOW\n");
 	return 0;
 }
 
@@ -224,7 +224,7 @@ static int tcpci_alert_fault(struct tcpc_device *tcpc)
 
 int tcpci_alert_wakeup(struct tcpc_device *tcpc)
 {
-	TCPC_INFO("Wakeup\n");
+	TCPC_DBG("Wakeup\n");
 	if (tcpc->typec_lpm) {
 		if (tcpc->ops->set_low_power_mode)
 			tcpc->ops->set_low_power_mode(tcpc, false,
@@ -302,6 +302,15 @@ int tcpci_alert(struct tcpc_device *tcpc, bool masked)
 	rv = tcpci_get_alert_status_and_mask(tcpc, &alert_status, &alert_mask);
 	if (rv < 0)
 		return rv;
+
+	if (!__ratelimit(&tcpc->alert_rs)) {
+		tcpci_notify_alert_ratelimited(tcpc, true);
+		alert_status &= alert_mask;
+		if (alert_status & TCPC_REG_ALERT_VENDOR_DEFINED)
+			tcpci_alert_vendor_defined_handler(tcpc);
+		return tcpci_alert_status_clear(tcpc, alert_status);
+	} else
+		tcpci_notify_alert_ratelimited(tcpc, false);
 
 	TCPC_INFO("Alert:0x%04x, Mask:0x%04x\n", alert_status, alert_mask);
 
@@ -419,7 +428,7 @@ static int tcpci_set_wake_lock_pd(struct tcpc_device *tcpc, bool pd_lock)
 
 int tcpci_report_usb_port_attached(struct tcpc_device *tcpc)
 {
-	TCPC_INFO("usb_port_attached\n");
+	TCPC_DBG("usb_port_attached\n");
 
 	tcpci_set_wake_lock_pd(tcpc, true);
 
@@ -438,7 +447,7 @@ int tcpci_report_usb_port_attached(struct tcpc_device *tcpc)
 
 int tcpci_report_usb_port_detached(struct tcpc_device *tcpc)
 {
-	TCPC_INFO("usb_port_detached\n");
+	TCPC_DBG("usb_port_detached\n");
 
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 	if (tcpc->pd_inited_flag)
@@ -467,7 +476,7 @@ int tcpci_report_usb_port_changed(struct tcpc_device *tcpc)
 	else if (tcpc->typec_attach_old == TYPEC_UNATTACHED)
 		tcpci_report_usb_port_attached(tcpc);
 	else
-		TCPC_DBG2("TCPC Attach Again\n");
+		TCPC_DBG("TCPC Attach Again\n");
 
 	return 0;
 }

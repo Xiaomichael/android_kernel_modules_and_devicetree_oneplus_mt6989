@@ -173,6 +173,16 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 		new_state = noti->typec_state.new_state;
 
 		if (old_state == TYPEC_UNATTACHED &&
+			new_state != TYPEC_UNATTACHED) {
+			tcpm_set_usb_dpdm_pull_low(mci->tcpc[idx], false);
+			dev_info(mci->dev, "%s set usb dpdm floating\n", __func__);
+		} else if (old_state != TYPEC_UNATTACHED &&
+				new_state == TYPEC_UNATTACHED) {
+			tcpm_set_usb_dpdm_pull_low(mci->tcpc[idx], true);
+			dev_info(mci->dev, "%s set usb dpdm pull low\n", __func__);
+		}
+
+		if (old_state == TYPEC_UNATTACHED &&
 		    (new_state == TYPEC_ATTACHED_SNK ||
 		     new_state == TYPEC_ATTACHED_NORP_SRC ||
 		     new_state == TYPEC_ATTACHED_CUSTOM_SRC ||
@@ -338,6 +348,9 @@ skip_get_psy:
 			ret = -ENODEV;
 			goto out;
 		}
+
+		tcpm_set_usb_dpdm_pull_low(mci->tcpc[i], true);
+		dev_info(mci->dev, "%s set usb dpdm pull low\n", __func__);
 
 		mci->pd_nb[i].nb.notifier_call = pd_tcp_notifier_call;
 		mci->pd_nb[i].mci = mci;

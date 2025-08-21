@@ -7907,6 +7907,12 @@ void wlanInitFeatureOptionImpl(struct ADAPTER *prAdapter, uint8_t *pucKey)
 	INIT_UINT(prWifiVar->u4PerfMonTpTh[8], "PerfMonLv9", 2000);
 	INIT_UINT(prWifiVar->u4PerfMonTpTh[9], "PerfMonLv10", 3500);
 
+#if CFG_SUPPORT_RX_NAPI
+	/* unit: s */
+	INIT_UINT(prWifiVar->u4NapiScheduleTimeout, "NapiScheduleTimeout", 60);
+	INIT_UINT(prWifiVar->fgNapiScheduleAeeEn, "NapiScheduleAeeEn",
+		  FEATURE_DISABLED);
+#endif
 #if CFG_NAPI_DELAY
 	/* unit: Mbps */
 	INIT_UINT(prWifiVar->u4NapiDelayTputTh, "NapiDelayTputTh", 200);

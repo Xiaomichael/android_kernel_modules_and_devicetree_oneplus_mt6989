@@ -87,6 +87,7 @@
 #define MT6379_REG_TCPCCTRL2	(0xB2)
 #define MT6379_REG_TCPCCTRL3	(0xB3)
 #define MT6379_REG_LPWRCTRL3	(0xBB)
+#define MT6379_REG_LPWRCTRL5	(0xBD)
 #define MT6379_REG_WATCHDOGCTRL	(0xBE)
 #define MT6379_REG_I2CTORSTCTRL	(0xBF)
 #define MT6379_REG_VCONN_LATCH	(0xC0)
@@ -1463,8 +1464,8 @@ static int mt6379_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 	mt6379_write8(ddata, TCPC_V10_REG_ROLE_CTRL,
 		      TCPC_V10_REG_ROLE_CTRL_RES_SET(0, 0, CC_RD, CC_RD));
 
-	/* tTCPCFilter = 250us */
-	mt6379_write8(ddata, MT6379_REG_TCPCCTRL1, 0x0A);
+	/* tTCPCFilter = 500us */
+	mt6379_write8(ddata, MT6379_REG_TCPCCTRL1, 0x14);
 
 	/*
 	 * DRP Toggle Cycle : 51.2 + 6.4*val ms
@@ -1494,6 +1495,9 @@ static int mt6379_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 
 	/* Enable PD Vconn current limit mode, ocp sel 300mA, and analog OVP */
 	mt6379_write8(ddata, MT6379_REG_VCONCTRL3, 0x51);
+
+	/* VBUS_VALID debounce time: 375us */
+	mt6379_write8(ddata, MT6379_REG_LPWRCTRL5, 0x2F);
 
 	/* Set HILOCCFILTER 250us */
 	mt6379_write8(ddata, MT6379_REG_HILOCTRL9, 0xAA);
@@ -1937,7 +1941,7 @@ static int mt6379_transmit(struct tcpc_device *tcpc,
 	struct mt6379_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
 	long long t1 = 0, t2 = 0;
 
-	MT6379_INFO("++\n");
+	MT6379_DBGINFO("++\n");
 	t1 = local_clock();
 	if (type < TCPC_TX_HARD_RESET) {
 		data_cnt = sizeof(u32) * PD_HEADER_CNT(header);
@@ -2198,7 +2202,7 @@ static int mt6379_alert_vendor_defined_handler(struct tcpc_device *tcpc)
 		return ret;
 
 	for (i = 0; i < MT6379_VEND_INT_NUM; i++) {
-		if (!alert[i])
+		if (!(alert[i] & mask[i]))
 			continue;
 		MT6379_INFO("vend_alert[%d]=alert,mask(0x%02X,0x%02X)\n",
 			    i + 1, alert[i], mask[i]);
@@ -2226,7 +2230,7 @@ static int mt6379_set_auto_dischg_discnt(struct tcpc_device *tcpc, bool en)
 	struct mt6379_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
 	int ret = 0;
 
-	MT6379_INFO("en=%d\n", en);
+	MT6379_DBGINFO("en=%d\n", en);
 	if (en) {
 		ret |= mt6379_update_bits(ddata, TCPC_V10_REG_POWER_CTRL,
 					  TCPC_V10_REG_VBUS_MONITOR, 0);
@@ -2318,7 +2322,8 @@ static irqreturn_t mt6379_pd_evt_handler(int irq, void *data)
 		if (ret || !pd_stat)
 			break;
 
-		MT6379_INFO("pd_evt:0x%02X, pd_stat:0x%02X\n", pd_evt, pd_stat);
+		MT6379_DBGINFO("pd_evt:0x%02X, pd_stat:0x%02X\n",
+			       pd_evt, pd_stat);
 
 		handled = true;
 		tcpci_lock_typec(ddata->tcpc);

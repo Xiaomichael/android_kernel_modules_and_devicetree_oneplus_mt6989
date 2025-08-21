@@ -785,6 +785,8 @@ p2pFuncAddPendingMgmtLinkEntry(struct ADAPTER *prAdapter,
 	prPendingMgmtInfo->ucChannelNum =
 		prMgmtTxMsg->rChannelInfo.ucChannelNum;
 	prPendingMgmtInfo->fgIsOffChannel = prMgmtTxMsg->fgIsOffChannel;
+	prPendingMgmtInfo->ucBssIdx = prMgmtTxMsg->ucBssIdx;
+
 	LINK_INSERT_TAIL(&prGlueP2pInfo->rWaitTxDoneLink,
 		&prPendingMgmtInfo->rLinkEntry);
 
@@ -1213,6 +1215,30 @@ p2pFuncTagMgmtFrame(struct MSDU_INFO *prMgmtTxMsdu,
 		break;
 	}
 	return eCNNState;
+}
+
+u_int8_t
+p2pFuncGetBssIdxByCookie(struct ADAPTER *prAdapter,
+	uint8_t ucRoleIndex,
+	struct P2P_PENDING_MGMT_INFO **prPendingMgmtInfoValid,
+	uint64_t u8cookie)
+{
+	struct GL_P2P_INFO *prGlueP2pInfo = NULL;
+	struct P2P_PENDING_MGMT_INFO *prPendingMgmtInfo = NULL;
+	struct P2P_PENDING_MGMT_INFO *prPendingMgmtInfoNext = NULL;
+
+	prGlueP2pInfo = prAdapter->prGlueInfo->prP2PInfo[ucRoleIndex];
+
+	LINK_FOR_EACH_ENTRY_SAFE(prPendingMgmtInfo,
+		prPendingMgmtInfoNext, &prGlueP2pInfo->rWaitTxDoneLink,
+		rLinkEntry, struct P2P_PENDING_MGMT_INFO) {
+		if (prPendingMgmtInfoNext->u8PendingMgmtCookie
+			== u8cookie) {
+			*prPendingMgmtInfoValid = prPendingMgmtInfoNext;
+			return TRUE;
+		}
+	}
+	return FALSE;
 }
 
 struct MSDU_INFO *p2pFuncProcessAuth(
@@ -4311,6 +4337,11 @@ p2pFuncValidateAuth(struct ADAPTER *prAdapter,
 		DBGLOG(P2P, WARN,
 			"Current OP mode is not under AP mode. (%d)\n",
 			prP2pBssInfo->eCurrentOPMode);
+		return FALSE;
+	} else if (p2pFuncIsSapGoCsa(prAdapter, prP2pBssInfo->u4PrivateData) ||
+		   prAdapter->rWifiVar.fgCsaInProgress) {
+		DBGLOG(P2P, INFO, "skip due to CSA still in progress\n");
+		*pu2StatusCode = STATUS_CODE_UNSPECIFIED_FAILURE;
 		return FALSE;
 	}
 	if (bssGetClientCount(prAdapter, prP2pBssInfo)
@@ -10511,6 +10542,15 @@ p2pFuncNeedForceSleep(struct ADAPTER *prAdapter)
 #endif
 
 	return TRUE;
+}
+
+u_int8_t
+p2pFuncIsSapGoCsa(struct ADAPTER *prAdapter, uint8_t ucRoleIdx)
+{
+	struct GLUE_INFO *prGlueInfo = prAdapter->prGlueInfo;
+	struct GL_P2P_INFO *prP2pInfo = prGlueInfo->prP2PInfo[ucRoleIdx];
+
+	return prP2pInfo->fgChannelSwitchReq;
 }
 
 void

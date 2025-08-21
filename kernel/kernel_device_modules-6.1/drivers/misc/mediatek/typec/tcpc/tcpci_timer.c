@@ -271,8 +271,6 @@ void tcpc_enable_lpm_timer(struct tcpc_device *tcpc, bool en)
 	uint32_t r = 0, mod = 0, tout =
 		tcpc_timer_desc[TYPEC_RT_TIMER_LOW_POWER_MODE].tout;
 
-	TCPC_TIMER_DBG("%s en = %d\n", __func__, en);
-
 	mutex_lock(&tcpc->timer_lock);
 
 	if (en) {
@@ -286,6 +284,7 @@ void tcpc_enable_lpm_timer(struct tcpc_device *tcpc, bool en)
 		mod = tout % USEC_PER_SEC;
 		alarm_start_relative(alarm, ktime_set(r, mod * NSEC_PER_USEC));
 	} else {
+		TCPC_TIMER_DBG("%s dis\n", __func__);
 		alarm_try_to_cancel(alarm);
 		tcpc->typec_lpm_tout = 0;
 	}

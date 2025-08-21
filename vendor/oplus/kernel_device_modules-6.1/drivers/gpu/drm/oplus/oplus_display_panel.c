@@ -37,6 +37,7 @@ extern int oplus_display_get_brightness(void *buf);
 extern int oplus_display_panel_set_cabc(void *buf);
 extern int oplus_display_panel_get_cabc(void *buf);
 extern int oplus_display_panel_get_panel_bpp(void *buf);
+extern int oplus_display_panel_get_iris_loopback_status(void *buf);
 extern int oplus_display_panel_set_esd(void *buf);
 extern int oplus_display_panel_get_esd(void *buf);
 extern int oplus_display_set_mtk_loglevel(void *buf);
@@ -119,6 +120,7 @@ static const struct panel_ioctl_desc panel_ioctls[] = {
 	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_DRE_STATUS, oplus_display_panel_set_cabc),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_DRE_STATUS, oplus_display_panel_get_cabc),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_PANEL_BPP, oplus_display_panel_get_panel_bpp),
+	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_IRIS_LOOP_STATUS, oplus_display_panel_get_iris_loopback_status),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_PQ_TRIGGER, oplus_display_panel_set_pq_trigger),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_GET_PQ_TRIGGER, oplus_display_panel_get_pq_trigger),
 	PANEL_IOCTL_DEF(PANEL_IOCTL_SET_FP_TYPE, oplus_ofp_set_fp_type),

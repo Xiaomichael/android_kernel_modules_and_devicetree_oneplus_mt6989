@@ -4138,6 +4138,14 @@ static int mtk_ovl_replace_bootup_mva(struct mtk_ddp_comp *comp,
 		if (priv->data->mmsys_id == MMSYS_MT6989 &&
 			comp->id == DDP_COMPONENT_OVL0_2L) {
 			DDPMSG("%s, replace mva same as pa %pad\n", __func__, &layer_addr);
+			domain = iommu_get_domain_for_dev(comp->dev);
+			if (domain == NULL) {
+				DDPPR_ERR("%s, iommu_get_domain fail\n", __func__);
+				return -1;
+			}
+			ret = iommu_map(domain, layer_addr, layer_addr, fb_info->size,
+				IOMMU_READ | IOMMU_WRITE);
+
 			write_phy_layer_addr_cmdq(comp, handle, 1, layer_addr);
 		} else {
 			layer_mva = layer_addr - fb_info->fb_pa + fb_info->fb_gem->dma_addr;

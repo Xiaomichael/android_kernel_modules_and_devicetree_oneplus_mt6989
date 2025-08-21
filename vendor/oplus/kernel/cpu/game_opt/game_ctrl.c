@@ -11,9 +11,12 @@
 #include "game_ctrl.h"
 #include "yield_opt.h"
 #include "frame_sync.h"
+#include "task_boost/heavy_task_boost.h"
+#include "critical_task_boost.h"
 
 struct proc_dir_entry *game_opt_dir = NULL;
 struct proc_dir_entry *early_detect_dir = NULL;
+struct proc_dir_entry *critical_heavy_boost_dir = NULL;
 
 static int __init game_ctrl_init(void)
 {
@@ -27,8 +30,14 @@ static int __init game_ctrl_init(void)
 		pr_err("fail to mkdir /proc/game_opt/early_detect\n");
 		return -ENOMEM;
 	}
+	critical_heavy_boost_dir = proc_mkdir("task_boost", game_opt_dir);
+	if (!critical_heavy_boost_dir) {
+		pr_err("fail to mkdir /proc/game_opt/task_boost\n");
+		return -ENOMEM;
+	}
 
 	cpu_load_init();
+	frame_load_init();
 	cpufreq_limits_init();
 	early_detect_init();
 	task_util_init();
@@ -37,10 +46,17 @@ static int __init game_ctrl_init(void)
 	debug_init();
 	yield_opt_init();
 	frame_sync_init();
+	heavy_task_boost_init();
+	hrtimer_boost_init();
+
 	return 0;
 }
 
-static void __exit game_ctrl_exit(void) {}
+static void __exit game_ctrl_exit(void)
+{
+	heavy_task_boost_exit();
+	hrtimer_boost_exit();
+}
 
 module_init(game_ctrl_init);
 module_exit(game_ctrl_exit);

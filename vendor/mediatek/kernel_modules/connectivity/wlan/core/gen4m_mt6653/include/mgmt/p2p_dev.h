@@ -125,6 +125,7 @@ struct P2P_PENDING_MGMT_INFO {
 	enum ENUM_BAND eBand;
 	uint8_t ucChannelNum;
 	uint8_t fgIsOffChannel;
+	uint8_t ucBssIdx;
 };
 
 struct P2P_DEV_FSM_INFO {

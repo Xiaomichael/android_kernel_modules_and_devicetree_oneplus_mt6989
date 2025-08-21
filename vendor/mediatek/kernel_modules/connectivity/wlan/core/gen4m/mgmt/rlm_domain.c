@@ -1454,6 +1454,7 @@ struct oplus_country_pwr_limit g_oplusCountryPwrLimit[] = {
     {24705, sizeof(g_rRlmPowerLimitConfiguration_24705)/sizeof(g_rRlmPowerLimitConfiguration_24705[0]), g_rRlmPowerLimitConfiguration_24705},
     {24750, sizeof(g_rRlmPowerLimitConfiguration_24750)/sizeof(g_rRlmPowerLimitConfiguration_24750[0]), g_rRlmPowerLimitConfiguration_24750},
     {24706, sizeof(g_rRlmPowerLimitConfiguration_24706)/sizeof(g_rRlmPowerLimitConfiguration_24706[0]), g_rRlmPowerLimitConfiguration_24706},
+    {24780, sizeof(g_rRlmPowerLimitConfiguration_24780)/sizeof(g_rRlmPowerLimitConfiguration_24780[0]), g_rRlmPowerLimitConfiguration_24780},
     {24774, sizeof(g_rRlmPowerLimitConfiguration_24774)/sizeof(g_rRlmPowerLimitConfiguration_24774[0]), g_rRlmPowerLimitConfiguration_24774},
     {24716, sizeof(g_rRlmPowerLimitConfiguration_24716)/sizeof(g_rRlmPowerLimitConfiguration_24716[0]), g_rRlmPowerLimitConfiguration_24716},
     {24921, sizeof(g_rRlmPowerLimitConfiguration_24921)/sizeof(g_rRlmPowerLimitConfiguration_24921[0]), g_rRlmPowerLimitConfiguration_24921},
@@ -1472,6 +1473,8 @@ struct oplus_country_pwr_limit g_oplusCountryPwrLimit[] = {
     {24322, sizeof(g_rRlmPowerLimitConfiguration_24322)/sizeof(g_rRlmPowerLimitConfiguration_24322[0]), g_rRlmPowerLimitConfiguration_24322},
     {24325, sizeof(g_rRlmPowerLimitConfiguration_24325)/sizeof(g_rRlmPowerLimitConfiguration_24325[0]), g_rRlmPowerLimitConfiguration_24325},
     {24891, sizeof(g_rRlmPowerLimitConfiguration_24891)/sizeof(g_rRlmPowerLimitConfiguration_24891[0]), g_rRlmPowerLimitConfiguration_24891},
+    {24035, sizeof(g_rRlmPowerLimitConfiguration_24035)/sizeof(g_rRlmPowerLimitConfiguration_24035[0]), g_rRlmPowerLimitConfiguration_24035},
+    {24345, sizeof(g_rRlmPowerLimitConfiguration_24035)/sizeof(g_rRlmPowerLimitConfiguration_24035[0]), g_rRlmPowerLimitConfiguration_24035},
 };
 
 struct oplus_country_pwr_limit_he g_oplusCountryPwrLimitHe[] = {
@@ -1486,10 +1489,13 @@ struct oplus_country_pwr_limit_he g_oplusCountryPwrLimitHe[] = {
     {24705, sizeof(g_rRlmPowerLimitConfigurationHE_24705)/sizeof(g_rRlmPowerLimitConfigurationHE_24705[0]), g_rRlmPowerLimitConfigurationHE_24705},
     {24750, sizeof(g_rRlmPowerLimitConfigurationHE_24750)/sizeof(g_rRlmPowerLimitConfigurationHE_24750[0]), g_rRlmPowerLimitConfigurationHE_24750},
     {24706, sizeof(g_rRlmPowerLimitConfigurationHE_24706)/sizeof(g_rRlmPowerLimitConfigurationHE_24706[0]), g_rRlmPowerLimitConfigurationHE_24706},
+    {24780, sizeof(g_rRlmPowerLimitConfigurationHE_24780)/sizeof(g_rRlmPowerLimitConfigurationHE_24780[0]), g_rRlmPowerLimitConfigurationHE_24780},
     {24774, sizeof(g_rRlmPowerLimitConfigurationHE_24774)/sizeof(g_rRlmPowerLimitConfigurationHE_24774[0]), g_rRlmPowerLimitConfigurationHE_24774},
     {24716, sizeof(g_rRlmPowerLimitConfigurationHE_24716)/sizeof(g_rRlmPowerLimitConfigurationHE_24716[0]), g_rRlmPowerLimitConfigurationHE_24716},
     {24051, sizeof(g_rRlmPowerLimitConfigurationHE_24051)/sizeof(g_rRlmPowerLimitConfigurationHE_24051[0]), g_rRlmPowerLimitConfigurationHE_24051},
     {24271, sizeof(g_rRlmPowerLimitConfigurationHE_24051)/sizeof(g_rRlmPowerLimitConfigurationHE_24051[0]), g_rRlmPowerLimitConfigurationHE_24051},
+    {24035, sizeof(g_rRlmPowerLimitConfigurationHE_24035)/sizeof(g_rRlmPowerLimitConfigurationHE_24035[0]), g_rRlmPowerLimitConfigurationHE_24035},
+    {24345, sizeof(g_rRlmPowerLimitConfigurationHE_24035)/sizeof(g_rRlmPowerLimitConfigurationHE_24035[0]), g_rRlmPowerLimitConfigurationHE_24035},
 };
 
 struct oplus_country_pwr_limit_hebw160 g_oplusCountryPwrLimitHeBw160[] = {
@@ -1588,6 +1594,7 @@ struct oplus_country_pwr_limit_default g_oplusCountryPwrLimitDefault[] = {
     {24705, sizeof(g_rRlmPowerLimitDefault_24705)/sizeof(g_rRlmPowerLimitDefault_24705[0]), g_rRlmPowerLimitDefault_24705},
     {24750, sizeof(g_rRlmPowerLimitDefault_24750)/sizeof(g_rRlmPowerLimitDefault_24750[0]), g_rRlmPowerLimitDefault_24750},
     {24706, sizeof(g_rRlmPowerLimitDefault_24706)/sizeof(g_rRlmPowerLimitDefault_24706[0]), g_rRlmPowerLimitDefault_24706},
+    {24780, sizeof(g_rRlmPowerLimitDefault_24780)/sizeof(g_rRlmPowerLimitDefault_24780[0]), g_rRlmPowerLimitDefault_24780},
     {24774, sizeof(g_rRlmPowerLimitDefault_24774)/sizeof(g_rRlmPowerLimitDefault_24774[0]), g_rRlmPowerLimitDefault_24774},
     {24716, sizeof(g_rRlmPowerLimitDefault_24716)/sizeof(g_rRlmPowerLimitDefault_24716[0]), g_rRlmPowerLimitDefault_24716},
     {24921, sizeof(g_rRlmPowerLimitDefault_24921)/sizeof(g_rRlmPowerLimitDefault_24921[0]), g_rRlmPowerLimitDefault_24921},
@@ -1606,6 +1613,8 @@ struct oplus_country_pwr_limit_default g_oplusCountryPwrLimitDefault[] = {
     {24322, sizeof(g_rRlmPowerLimitDefault_24322)/sizeof(g_rRlmPowerLimitDefault_24322[0]), g_rRlmPowerLimitDefault_24322},
     {24325, sizeof(g_rRlmPowerLimitDefault_24325)/sizeof(g_rRlmPowerLimitDefault_24325[0]), g_rRlmPowerLimitDefault_24325},
     {24891, sizeof(g_rRlmPowerLimitDefault_24891)/sizeof(g_rRlmPowerLimitDefault_24891[0]), g_rRlmPowerLimitDefault_24891},
+    {24035, sizeof(g_rRlmPowerLimitDefault_24035)/sizeof(g_rRlmPowerLimitDefault_24035[0]), g_rRlmPowerLimitDefault_24035},
+    {24345, sizeof(g_rRlmPowerLimitDefault_24035)/sizeof(g_rRlmPowerLimitDefault_24035[0]), g_rRlmPowerLimitDefault_24035},
 };
 #if (CFG_SUPPORT_WIFI_6G_PWR_MODE == 1)
 struct oplus_country_pwr_limit_default g_oplusCountryPwrLimitDefault_VLP[] = {

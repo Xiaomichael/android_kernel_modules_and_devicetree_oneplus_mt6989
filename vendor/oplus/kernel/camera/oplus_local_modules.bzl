@@ -240,6 +240,15 @@ def define_oplus_local_modules():
     )
 
     define_oplus_ddk_module(
+        name = "oplus_camera_dw9800s_24035",
+        srcs = native.glob([
+            "**/*.h",
+            "lens/vcm/v4l2/dw9800s_24035/dw9800s_24035.c",
+        ]),
+        includes = ["."],
+    )
+
+    define_oplus_ddk_module(
         name = "oplus_camera_dw9827c_23261",
         srcs = native.glob([
             "**/*.h",
@@ -442,6 +451,15 @@ def define_oplus_local_modules():
         srcs = native.glob([
             "**/*.h",
             "flashlight/v4l2/sy7806e_alphah.c",
+        ]),
+        includes = ["."],
+    )
+
+    define_oplus_ddk_module(
+        name = "oplus_camera_sy7806e_baikalm",
+        srcs = native.glob([
+            "**/*.h",
+            "flashlight/v4l2/sy7806e_baikalm.c",
         ]),
         includes = ["."],
     )

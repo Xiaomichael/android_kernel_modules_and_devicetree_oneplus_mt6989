@@ -148,6 +148,7 @@ struct oplus_ap_read_ufcs_resp_msg {
 struct oplus_ap_read_req_msg {
 	struct pmic_glink_hdr hdr;
 	u32 message_id;
+	u32 value;
 };
 
 struct oplus_ap_read_buffer_resp_msg {
@@ -162,6 +163,7 @@ enum oplus_ap_message_id {
 	AP_MESSAGE_GET_GAUGE_REG_INFO,
 	AP_MESSAGE_GET_GAUGE_CALIB_TIME,
 	AP_MESSAGE_GET_GAUGE_BATTINFO,
+	AP_MESSAGE_GET_LPD_INFO,
 	AP_MESSAGE_MAX_SIZE = 32,
 };
 
@@ -407,6 +409,25 @@ enum OTG_BOOST_SOURCE {
 enum WLS_BOOST_SOURCE {
 	WLS_BOOST_SOURCE_PMIC_OTG,
 	WLS_BOOST_SOURCE_PMIC_WLS,
+};
+
+enum charging_status {
+	CHARGING_TYPE_UNKNOW,
+	CHARGING_TYPE_VOOC_SVOOC,
+	CHARGING_TYPE_OPLUS_UFCS,
+	CHARGING_TYPE_OPLUS_PPS,
+	CHARGING_TYPE_THIRD_UFCS,
+	CHARGING_TYPE_THIRD_PPS,
+	CHARGING_TYPE_FFC,
+	CHARGING_TYPE_MAX,
+};
+
+enum qbg_full_temp_region {
+	QBG_TEMP_COLD,
+	QBG_TEMP_COOL,
+	QBG_TEMP_NORMAL,
+	QBG_TEMP_WARM,
+	QBG_TEMP_MAX,
 };
 
 enum OEM_MISC_CTL_CMD {
@@ -749,6 +770,9 @@ struct battery_chg_dev {
 	bool error_prop;
 	int sub_btb_valid_temp[OPLUS_SUB_BTB_MAX];
 #endif
+	int batt_full_para[CHARGING_TYPE_MAX][QBG_TEMP_MAX];
+	int batt_full_temp[QBG_TEMP_MAX];
+	bool batt_full_method_new;
 };
 
 /**********************************************************************

@@ -725,7 +725,7 @@ static irqreturn_t mtk_rtc_irq_handler_thread(int irq, void *data)
 		}
 
 		/* power on */
-		if (now_time >= time - 1 && now_time <= time + 4) {
+		if (now_time >= time - 1 && now_time <= time + 10) {
 			memset(&p_alm, 0, sizeof(struct rtc_wkalrm));
 			if (bootmode == KERNEL_POWER_OFF_CHARGING_BOOT ||
 				bootmode == LOW_POWER_OFF_CHARGING_BOOT) {
@@ -791,15 +791,10 @@ static int __mtk_rtc_read_time(struct mt6685_rtc *rtc,
 			       struct rtc_time *tm, int *sec)
 {
 	int ret;
-	unsigned int reload = 0;
 	u16 data[RTC_OFFSET_COUNT] = { 0 };
 
 	power_on_mclk(rtc);
-
-	rtc_read(rtc, rtc->addr_base + RTC_BBPU, &reload);
-	reload = reload | RTC_BBPU_KEY | RTC_BBPU_RELOAD;
-	rtc_write(rtc, rtc->addr_base + RTC_BBPU, reload);
-	mtk_rtc_write_trigger(rtc);
+	udelay(60);
 	power_down_mclk(rtc);
 
 	mutex_lock(&rtc->lock);
@@ -946,7 +941,7 @@ static bool mtk_rtc_check_set_time(struct mt6685_rtc *rtc, struct rtc_time *tm,
 		ret = rtc_bulk_read(rtc, rtc->addr_base + rtc_time_reg,
 				       latest, RTC_OFFSET_COUNT * 2);
 		if (ret < 0)
-			return ret;
+			return false;
 
 		for (i = 0; i < RTC_OFFSET_COUNT; i++) {
 			if (i == RTC_OFFSET_DOW)
@@ -959,11 +954,11 @@ static bool mtk_rtc_check_set_time(struct mt6685_rtc *rtc, struct rtc_time *tm,
 			if (j == retry_time) {
 				ret = rtc_read(rtc, rtc->data->hwid, &hwid);
 				if (ret < 0)
-					return ret;
+					return false;
 
 				ret = rtc_read(rtc, RG_RTC_MCLK_PDN, &mclk);
 				if (ret < 0)
-					return ret;
+					return false;
 				mclk = mclk >> RG_RTC_MCLK_PDN_STA_SHIFT & RG_RTC_MCLK_PDN_STA_MASK;
 
 				if (rtc->data->chip_version == MT6685_SERIES) {
@@ -971,7 +966,7 @@ static bool mtk_rtc_check_set_time(struct mt6685_rtc *rtc, struct rtc_time *tm,
 						rtc->addr_base + RTC_SPAR_MACRO, &prot_key);
 
 					if (ret < 0)
-						return ret;
+						return false;
 
 					prot_key =
 						prot_key >> SPAR_PROT_STAT_SHIFT
@@ -1221,6 +1216,18 @@ static int mtk_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	if ((alm->enabled == 3) || (alm->enabled == 4))
 		rtc_update_irq(rtc->rtc_dev, 1, RTC_IRQF | RTC_AF);
 exit:
+	dev_notice(rtc->rtc_dev->dev.parent,
+		"set al time raw after start = %04d/%02d/%02d %02d:%02d:%02d (%d)\n",
+		  tm->tm_year, tm->tm_mon, tm->tm_mday,
+		  tm->tm_hour, tm->tm_min, tm->tm_sec, alm->enabled);
+
+	tm->tm_year += RTC_MIN_YEAR_OFFSET;
+	tm->tm_mon--;
+
+	dev_notice(rtc->rtc_dev->dev.parent,
+		"set al time raw after end = %04d/%02d/%02d %02d:%02d:%02d (%d)\n",
+		  tm->tm_year, tm->tm_mon, tm->tm_mday,
+		  tm->tm_hour, tm->tm_min, tm->tm_sec, alm->enabled);
 	mutex_unlock(&rtc->lock);
 	mutex_unlock(&rtc_shutdown_lock);
 	power_down_mclk(rtc);
@@ -1229,18 +1236,25 @@ exit:
 
 int rtc_alarm_set_power_on(struct device *dev, struct rtc_wkalrm *alm)
 {
+	struct rtc_wkalrm rtc_alm;
+	struct mt6685_rtc *rtc = dev_get_drvdata(dev);
+	int retry = 5;
 	int err = 0;
 	struct rtc_time tm;
 	time64_t now, scheduled;
 
 	err = rtc_valid_tm(&alm->time);
-	if (err != 0)
+	if (err != 0) {
+		dev_err(rtc->rtc_dev->dev.parent,"%s: rtc_valid_tm failed\n", __func__);
 		return err;
+	}
 	scheduled = rtc_tm_to_time64(&alm->time);
 
 	err = mtk_rtc_read_time(dev, &tm);
-	if (err != 0)
+	if (err != 0) {
+		dev_err(rtc->rtc_dev->dev.parent,"%s: mtk_rtc_read_time failed\n", __func__);
 		return err;
+	}
 	now = rtc_tm_to_time64(&tm);
 
 	if (scheduled <= now)
@@ -1249,6 +1263,63 @@ int rtc_alarm_set_power_on(struct device *dev, struct rtc_wkalrm *alm)
 		alm->enabled = 3;
 
 	mtk_rtc_set_alarm(dev, alm);
+
+	// if the alarm time read from rtc register is not consistent with what we set,
+	// retry 5 times unless consistent early
+	udelay(70);
+
+	err = mtk_rtc_read_alarm(dev, &rtc_alm);
+	if (err != 0){
+		dev_err(rtc->rtc_dev->dev.parent,"%s: mtk_rtc_read_alarm failed\n", __func__);
+		return err;
+	}
+
+	dev_notice(rtc->rtc_dev->dev.parent,
+		"%s: read al time before while = %04d/%02d/%02d %02d:%02d:%02d\n", __func__,
+		alm->time.tm_year-RTC_MIN_YEAR_OFFSET+RTC_MIN_YEAR, alm->time.tm_mon+1, alm->time.tm_mday,
+		alm->time.tm_hour, alm->time.tm_min, alm->time.tm_sec);
+
+	dev_notice(rtc->rtc_dev->dev.parent,
+		"%s: read al time from RG raw before while = %04d/%02d/%02d %02d:%02d:%02d\n", __func__,
+		rtc_alm.time.tm_year-RTC_MIN_YEAR_OFFSET+RTC_MIN_YEAR, rtc_alm.time.tm_mon+1, rtc_alm.time.tm_mday,
+		rtc_alm.time.tm_hour, rtc_alm.time.tm_min, rtc_alm.time.tm_sec);
+
+	while (rtc_alm.time.tm_year != alm->time.tm_year || rtc_alm.time.tm_mon != alm->time.tm_mon
+		|| rtc_alm.time.tm_mday != alm->time.tm_mday || rtc_alm.time.tm_hour != alm->time.tm_hour
+		|| rtc_alm.time.tm_min != alm->time.tm_min || rtc_alm.time.tm_sec != alm->time.tm_sec) {
+		if (retry > 0) {
+			// debug log
+			dev_notice(rtc->rtc_dev->dev.parent,
+				"%s: retry = %d\n", __func__, retry);
+
+			mtk_rtc_set_alarm(dev, alm);
+			udelay(70);
+
+			err = mtk_rtc_read_alarm(dev, &rtc_alm);
+			if (err != 0) {
+				dev_err(rtc->rtc_dev->dev.parent,"%s: mtk_rtc_read_alarm failed\n", __func__);
+				return err;
+			}
+
+			dev_notice(rtc->rtc_dev->dev.parent,
+				"%s: read set al time raw in while = %04d/%02d/%02d %02d:%02d:%02d\n",
+				__func__, alm->time.tm_year-RTC_MIN_YEAR_OFFSET+RTC_MIN_YEAR,
+				alm->time.tm_mon+1, alm->time.tm_mday, alm->time.tm_hour,
+				alm->time.tm_min, alm->time.tm_sec);
+
+			dev_notice(rtc->rtc_dev->dev.parent,
+				"%s: read first al time from RG raw in while = %04d/%02d/%02d %02d:%02d:%02d\n",
+				__func__, rtc_alm.time.tm_year-RTC_MIN_YEAR_OFFSET+RTC_MIN_YEAR,
+				rtc_alm.time.tm_mon+1, rtc_alm.time.tm_mday, rtc_alm.time.tm_hour,
+				rtc_alm.time.tm_min, rtc_alm.time.tm_sec);
+
+			retry--;
+		} else {
+			dev_notice(rtc->rtc_dev->dev.parent,
+				"%s: retry = %d set alarm to rtc failed!\n", __func__, retry);
+			break;
+		}
+	}
 
 	return err;
 }

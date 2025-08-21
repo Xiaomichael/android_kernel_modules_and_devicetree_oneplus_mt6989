@@ -112,6 +112,7 @@ static int dw9800s_write_array(struct dw9800s_device *dw9800s,
 static int dw9800s_set_position(struct dw9800s_device *dw9800s, u16 val)
 {
     struct i2c_client *client = v4l2_get_subdevdata(&dw9800s->sd);
+    pr_info("dw9800s set position is %d", val);
 	return i2c_smbus_write_word_data(client, DW9800S_SET_POSITION_ADDR,
 					 swab16(val));
 }

@@ -456,6 +456,17 @@ out:
 }
 EXPORT_SYMBOL(tcpci_set_cc_hidet);
 
+int tcpci_set_usb_dpdm_pull_low(struct tcpc_device *tcpc, bool enable)
+{
+	int ret = 0;
+
+	if (tcpc->ops->set_usb_dpdm_pull_low)
+		ret = tcpc->ops->set_usb_dpdm_pull_low(tcpc, enable);
+
+	return ret;
+}
+EXPORT_SYMBOL(tcpci_set_usb_dpdm_pull_low);
+
 int tcpci_set_vbus_short_cc_en(struct tcpc_device *tcpc, bool cc1, bool cc2)
 {
 	int ret = 0;
@@ -620,23 +631,23 @@ void tcpc_tx_pending_work_func(struct work_struct *work)
 
 static void tcpc_wait_tx_done(struct tcpc_device *tcpc)
 {
-#if TCPC_INFO_ENABLE
+#if TCPC_DBG_ENABLE
 	long ret = 0;
-#endif /* TCPC_INFO_ENABLE */
+#endif /* TCPC_DBG_ENABLE */
 	const u64 j = jiffies;
 
 	if (time_after_eq64(j, tcpc->tx_jiffies + tcpc->tx_jiffies_max))
 		return;
 
-#if TCPC_INFO_ENABLE
+#if TCPC_DBG_ENABLE
 	ret = wait_event_timeout(tcpc->tx_wait_que,
 				 !atomic_read(&tcpc->tx_pending),
 				 tcpc->tx_jiffies + tcpc->tx_jiffies_max - j);
-	TCPC_INFO("%s ret = %ld\n", __func__, ret);
+	TCPC_DBG("%s ret = %ld\n", __func__, ret);
 #else
 	wait_event_timeout(tcpc->tx_wait_que, !atomic_read(&tcpc->tx_pending),
 			   tcpc->tx_jiffies + tcpc->tx_jiffies_max - j);
-#endif /* TCPC_INFO_ENABLE */
+#endif /* TCPC_DBG_ENABLE */
 }
 
 int tcpci_transmit(struct tcpc_device *tcpc,
@@ -1010,6 +1021,18 @@ int tcpci_notify_cc_hi(struct tcpc_device *tcpc, int cc_hi)
 		TCP_NOTIFY_IDX_MISC, TCP_NOTIFY_CC_HI);
 }
 EXPORT_SYMBOL(tcpci_notify_cc_hi);
+
+int tcpci_notify_alert_ratelimited(struct tcpc_device *tcpc, bool limited)
+{
+	struct tcp_notify tcp_noti;
+
+	if (limited == tcpc->alert_ratelimited)
+		return 0;
+	tcpc->alert_ratelimited = limited;
+	tcp_noti.alert_ratelimited = limited;
+	return tcpc_check_notify_time(tcpc, &tcp_noti,
+		TCP_NOTIFY_IDX_MISC, TCP_NOTIFY_ALERT_RATELIMITED);
+}
 
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 

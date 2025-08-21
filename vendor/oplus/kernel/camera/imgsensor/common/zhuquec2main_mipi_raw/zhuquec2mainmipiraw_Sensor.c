@@ -297,7 +297,7 @@ static struct SET_PD_BLOCK_INFO_T imgsensor_partial_pd_info = {
 	.PDAF_Support = PDAF_SUPPORT_CAMSV,
 	/* VC's PD pattern description */
 	.sPDMapInfo[0] = {
-		.i4VCFeature = VC_PDAF_STATS_NE_PIX_1,
+		//.i4VCFeature = VC_PDAF_STATS_NE_PIX_1,
 		.i4PDPattern = 3,
 		.i4PDRepetition = 4,
 		.i4PDOrder = {1, 0, 0, 1}, /*R = 1, L = 0*/
@@ -555,11 +555,11 @@ static struct mtk_mbus_frame_desc_entry frame_desc_cus7[] = {
     },
     {
         .bus.csi2 = {
-            .channel = 0,
+            .channel = 1,   //0--->1
             .data_type = 0x30,
             .hsize = 496,
             .vsize = 1504,
-            .user_data_desc = VC_PDAF_STATS_NE_PIX_1,
+            .user_data_desc = VC_PDAF_STATS_ME_PIX_1,  //VC_PDAF_STATS_NE_PIX_1--->VC_PDAF_STATS_ME_PIX_1
             .dt_remap_to_type = MTK_MBUS_FRAME_DESC_REMAP_TO_RAW10,
        },
     },
@@ -741,7 +741,7 @@ static struct subdrv_mode_struct mode_struct[] = {
 			.equivalent_fps = 0,
 		},
 	},
-	{/*Reg_B_4096x2304_30FPS**/
+	{/*reg_B14-S6 4096x2304 @30FPS QBIN(VBIN)_with PDAF VB_max PixelRate 2146Msps**/
 		.frame_desc = frame_desc_vid,
 		.num_entries = ARRAY_SIZE(frame_desc_vid),
 		.mode_setting_table = zhuquec2main_normal_video_setting,
@@ -790,7 +790,7 @@ static struct subdrv_mode_struct mode_struct[] = {
 			.equivalent_fps = 30,
 		},
 	},
-    {/*Reg_B_4096x2304_30FPS**/
+    {/*reg_B15-S6 4096x2304 @60FPS QBIN_with PDAF VB_max PixelRate 2146Msps**/
 		.frame_desc = frame_desc_hs,
 		.num_entries = ARRAY_SIZE(frame_desc_hs),
 		.mode_setting_table = zhuquec2main_hs_video_setting,
@@ -1035,7 +1035,7 @@ static struct subdrv_mode_struct mode_struct[] = {
 			.equivalent_fps = 15,
 		},
 	},
-    {/*F9-S4_4096x3072_30FPS_IZOOM+QBC**/
+    {/*Reg_F11-S6 4096x3072 @30FPS Full-RAW_Crop with PD VB_max 2146Msps**/
 		.frame_desc = frame_desc_cus4,
 		.num_entries = ARRAY_SIZE(frame_desc_cus4),
 		.mode_setting_table = zhuquec2main_custom4_setting,
@@ -2413,7 +2413,6 @@ static int zhuquec2main_seamless_switch(struct subdrv_ctx *ctx, u8 *para, u32 *l
 	i2c_table_write(ctx,
 		ctx->s_ctx.mode[scenario_id].seamless_switch_mode_setting_table,
 		ctx->s_ctx.mode[scenario_id].seamless_switch_mode_setting_len);
-
 	DRV_LOG(ctx, "write seamless switch setting done\n");
 	if (ae_ctrl) {
 		switch (ctx->s_ctx.mode[scenario_id].hdr_mode) {

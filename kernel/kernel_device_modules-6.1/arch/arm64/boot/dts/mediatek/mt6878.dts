@@ -1871,8 +1871,8 @@
 			"cam_subb-4",
 			"cam_ccu-0", "cam_ccu-1", "cam_ccu-2",
 			"disp0-0", "disp0-1";
-		isp-main-supply = <&mt6319_6_vbuck1>;
-		cam-main-supply = <&mt6319_6_vbuck1>;
+		isp-vcore-supply = <&mt6319_6_vbuck1>;
+		cam-vcore-supply = <&mt6319_6_vbuck1>;
 	};
 
 	vlpcfg_reg_clk: syscon@1c00c000 {
@@ -7793,6 +7793,7 @@
 				<4 0 975>, /* larb_id, rw, base_bw*/
 				<5 1 645>;
 			vdec-cpu-hint-mode = <1>; /* uclamp mode */
+			cpu-uclamp-min = <370>;
 		};
 
 		venc@17000000 {
@@ -10551,6 +10552,7 @@
 	low_battery_throttling: low-battery-throttling {
 		compatible = "mediatek,low_battery_throttling";
 
+		pt-shutdown-enable = <0>;
 		lvsys-thd-enable = <1>;
 		vbat-thd-enable = <1>;
 		thd-volts-l = <
@@ -12075,7 +12077,11 @@ TOP_LDRO7,TOP_LDRO8,TOP_LDRO9,TOP_LDRO10,TOP_LDRO11,TOP_LDRO12,TOP_LDRO13,TOP_LD
 			/* 0: Never, 1: Always, 2: EMarkOnly, 3: StartOnly */
 			tcpc,vconn-supply = <1>;
 			io-channels = <&mt6375_adc MT6375_ADC_SBU1>,
-				      <&mt6375_adc MT6375_ADC_SBU2>;
+				      <&mt6375_adc MT6375_ADC_SBU2>,
+				      <&mt6375_adc MT6375_ADC_CC1>,
+				      <&mt6375_adc MT6375_ADC_CC2>,
+				      <&mt6375_adc MT6375_ADC_USBDP>,
+				      <&mt6375_adc MT6375_ADC_USBDM>;
 			charger = <&mt6375_chg>;
 			/* #ifdef OPLUS_FEATURE_CHG_BASIC */
 			/* oplus charge add for wd0 */
@@ -12434,6 +12440,7 @@ TOP_LDRO7,TOP_LDRO8,TOP_LDRO9,TOP_LDRO10,TOP_LDRO11,TOP_LDRO12,TOP_LDRO13,TOP_LD
 					"pmic_imix_r",
 					"pmic_batadc";
 			bootmode = <&chosen>;
+			dlpt-thread-enable = <0>;    /*disable  DLPT*/
 		};
 	};
 

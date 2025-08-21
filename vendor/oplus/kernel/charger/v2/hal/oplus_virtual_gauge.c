@@ -2933,6 +2933,69 @@ static int oplus_chg_vg_get_manu_date(struct oplus_chg_ic_dev *ic_dev, char *buf
 	return rc;
 }
 
+static int oplus_chg_vg_get_batt_sn(struct oplus_chg_ic_dev *ic_dev, char *buf, int len)
+{
+	struct oplus_virtual_gauge_ic *chip;
+	int i;
+	int rc = 0;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+	for (i = 0; i < chip->child_num; i++) {
+		if (!func_is_support(&chip->child_list[i],
+				     OPLUS_IC_FUNC_GAUGE_GET_BATT_IC_SN)) {
+			rc = (rc == 0) ? -ENOTSUPP : rc;
+			chg_err("child ic[%d] not support OPLUS_IC_FUNC_GAUGE_GET_BATT_IC_SN", i);
+			continue;
+		}
+
+		rc = oplus_chg_ic_func(chip->child_list[i].ic_dev,
+				       OPLUS_IC_FUNC_GAUGE_GET_BATT_IC_SN, buf, len);
+		if (rc < 0)
+			chg_err("child ic[%d] get oplus_chg_vg_get_batt_sn error, rc=%d\n",
+				i, rc);
+		break;
+	}
+	chg_err("oplus_chg_vg_get_batt_sn %s", buf);
+
+	return rc;
+}
+
+static int oplus_chg_vg_get_historic_soh_date(struct oplus_chg_ic_dev *ic_dev, int *buf, int len)
+{
+	struct oplus_virtual_gauge_ic *chip;
+	int i;
+	int rc = 0;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+	for (i = 0; i < chip->child_num; i++) {
+		if (!func_is_support(&chip->child_list[i],
+				     OPLUS_IC_FUNC_GAUGE_GET_BATT_HISTSOH_DATA)) {
+			rc = (rc == 0) ? -ENOTSUPP : rc;
+			chg_err("child ic[%d] not support OPLUS_IC_FUNC_GAUGE_GET_BATT_HISTSOH_DATA", i);
+			continue;
+		}
+
+		rc = oplus_chg_ic_func(chip->child_list[i].ic_dev,
+				       OPLUS_IC_FUNC_GAUGE_GET_BATT_HISTSOH_DATA, buf, len);
+		if (rc < 0)
+			chg_err("child ic[%d] get oplus_chg_vg_get_historic_soh_date error, rc=%d\n",
+				i, rc);
+		break;
+	}
+
+	return rc;
+}
+
 static int oplus_chg_vg_get_first_usage_date(struct oplus_chg_ic_dev *ic_dev, char *buf, int len)
 {
 	struct oplus_virtual_gauge_ic *chip;
@@ -2963,6 +3026,71 @@ static int oplus_chg_vg_get_first_usage_date(struct oplus_chg_ic_dev *ic_dev, ch
 
 	return rc;
 }
+
+static int oplus_chg_vg_set_histrioc_soh_date(struct oplus_chg_ic_dev *ic_dev, const int *buf)
+{
+	struct oplus_virtual_gauge_ic *chip;
+	int i;
+	int rc = 0;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+
+	for (i = 0; i < chip->child_num; i++) {
+		if (!func_is_support(&chip->child_list[i],
+				     OPLUS_IC_FUNC_GAUGE_SET_BATT_HISTSOH_DATA)) {
+			rc = (rc == 0) ? -ENOTSUPP : rc;
+			chg_err("child ic[%d] not support OPLUS_IC_FUNC_GAUGE_SET_BATT_HISTSOH_DATA", i);
+			continue;
+		}
+
+		rc = oplus_chg_ic_func(chip->child_list[i].ic_dev,
+				       OPLUS_IC_FUNC_GAUGE_SET_BATT_HISTSOH_DATA, buf);
+		if (rc < 0)
+			chg_err("child ic[%d] set oplus_chg_vg_set_histrioc_soh_date error, rc=%d\n",
+				i, rc);
+		break;
+	}
+
+	return rc;
+}
+
+static int oplus_chg_vg_set_reset_gauge_date(struct oplus_chg_ic_dev *ic_dev, const int *buf)
+{
+	struct oplus_virtual_gauge_ic *chip;
+	int i;
+	int rc = 0;
+
+	if (ic_dev == NULL) {
+		chg_err("oplus_chg_ic_dev is NULL");
+		return -ENODEV;
+	}
+
+	chip = oplus_chg_ic_get_drvdata(ic_dev);
+
+	for (i = 0; i < chip->child_num; i++) {
+		if (!func_is_support(&chip->child_list[i],
+				     OPLUS_IC_FUNC_GAUGE_SET_RESET_GAUGE_DATE)) {
+			rc = (rc == 0) ? -ENOTSUPP : rc;
+			chg_err("child ic[%d] not support OPLUS_IC_FUNC_GAUGE_SET_RESET_GAUGE_DATE", i);
+			continue;
+		}
+
+		rc = oplus_chg_ic_func(chip->child_list[i].ic_dev,
+				       OPLUS_IC_FUNC_GAUGE_SET_RESET_GAUGE_DATE, buf);
+		if (rc < 0)
+			chg_err("child ic[%d] set oplus_chg_vg_set_reset_gauge_date error, rc=%d\n",
+				i, rc);
+		break;
+	}
+
+	return rc;
+}
+
 
 static int oplus_chg_vg_set_first_usage_date(struct oplus_chg_ic_dev *ic_dev, const char *buf)
 {
@@ -3851,6 +3979,22 @@ static void *oplus_chg_vg_get_func(struct oplus_chg_ic_dev *ic_dev,
 	case OPLUS_IC_FUNC_GAUGE_SET_FIRST_USAGE_DATE:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SET_FIRST_USAGE_DATE,
 			oplus_chg_vg_set_first_usage_date);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_SET_RESET_GAUGE_DATE:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SET_RESET_GAUGE_DATE,
+			oplus_chg_vg_set_reset_gauge_date);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_SET_BATT_HISTSOH_DATA:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_SET_BATT_HISTSOH_DATA,
+			oplus_chg_vg_set_histrioc_soh_date);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_GET_BATT_HISTSOH_DATA:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_BATT_HISTSOH_DATA,
+			oplus_chg_vg_get_historic_soh_date);
+		break;
+	case OPLUS_IC_FUNC_GAUGE_GET_BATT_IC_SN:
+		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_BATT_IC_SN,
+			oplus_chg_vg_get_batt_sn);
 		break;
 	case OPLUS_IC_FUNC_GAUGE_GET_UI_CC:
 		func = OPLUS_CHG_IC_FUNC_CHECK(OPLUS_IC_FUNC_GAUGE_GET_UI_CC,

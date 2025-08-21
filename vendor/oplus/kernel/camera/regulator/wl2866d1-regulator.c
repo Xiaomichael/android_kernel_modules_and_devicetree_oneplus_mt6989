@@ -385,10 +385,17 @@ static wl2866d_dev_info_t dev_info[] = {
      .reg_desc = &wl2866d_regulators[0],
      .reg_desc_size = ARRAY_SIZE(wl2866d_regulators),
     },
-    /*sgm38121*/
+     /*sgm38121*/
     {.wl2866d_slave_id = 0x28,
      .chip_id_reg = WL2866D_CHIP_ID_REG,
      .chip_id = 0x80,
+     .reg_desc = &sgm38121_regulators[0],
+     .reg_desc_size = ARRAY_SIZE(sgm38121_regulators),
+    },
+    /*wl28661d*/
+    {.wl2866d_slave_id = 0x28,
+     .chip_id_reg = WL2866D_CHIP_ID_REG,
+     .chip_id = 0x33,
      .reg_desc = &sgm38121_regulators[0],
      .reg_desc_size = ARRAY_SIZE(sgm38121_regulators),
     },

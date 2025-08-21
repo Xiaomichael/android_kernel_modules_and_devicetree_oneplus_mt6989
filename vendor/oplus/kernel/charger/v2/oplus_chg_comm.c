@@ -9258,7 +9258,6 @@ __maybe_unused static int oplus_comm_set_led_on(struct oplus_chg_comm *chip, boo
 		return 0;
 
 	chip->led_on = on;
-	chg_info("set led_on=%d\n", chip->led_on);
 	msg = oplus_mms_alloc_msg(MSG_TYPE_ITEM, MSG_PRIO_MEDIUM,
 				  COMM_ITEM_LED_ON);
 	if (msg == NULL) {
@@ -9271,6 +9270,7 @@ __maybe_unused static int oplus_comm_set_led_on(struct oplus_chg_comm *chip, boo
 		kfree(msg);
 		return rc;
 	}
+	chg_info("set led_on=%d\n", chip->led_on);
 
 	return 0;
 }

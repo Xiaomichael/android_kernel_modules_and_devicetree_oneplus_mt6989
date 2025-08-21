@@ -7,6 +7,7 @@
 
 &low_battery_throttling {
 		compatible = "mediatek,low_battery_throttling";
+		pt-shutdown-enable = <0>;
 		lvsys-thd-enable = <1>;
 		vbat-thd-enable = <1>;
 		bat0-thd-volts-l = <
@@ -52,7 +53,7 @@
 		bootmode = <&chosen>;
 		gauge = <&mtk_gauge>;
 	};
-	
+
 &cpu_power_throttling {
 		compatible = "mediatek,cpu-power-throttling";
 
@@ -81,7 +82,7 @@
 		soc-max-level = <1>;
 		soc-limit-freq = <2147483647>;
 	};
-	
+
 	&bp_thl {
 		compatible = "mediatek,mtk-bp-thl";
 

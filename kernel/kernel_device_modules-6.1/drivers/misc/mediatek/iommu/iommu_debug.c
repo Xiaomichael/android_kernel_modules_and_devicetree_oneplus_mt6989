@@ -904,6 +904,23 @@ static int mtk_smmu_power_put(u32 smmu_type)
 	return -1;
 }
 
+static void smmu_status_dump(struct seq_file *s, struct mtk_smmu_data *data)
+{
+	iommu_dump(s, "smmu_%d: ras_detected=%d\n",
+		   data->plat_data->smmu_type, atomic_read(&data->ras_detected));
+}
+
+static void mtk_smmu_status_dump(struct seq_file *s, u32 smmu_type)
+{
+	struct mtk_smmu_data *data;
+
+	if (smmu_ops && smmu_ops->get_smmu_data) {
+		data = smmu_ops->get_smmu_data(smmu_type);
+		if (data != NULL && data->hw_init_flag == 1)
+			smmu_status_dump(s, data);
+	}
+}
+
 static int get_smmu_common_id(u32 smmu_type, u32 tbu_id)
 {
 	int id = -1;
@@ -1605,6 +1622,10 @@ static inline int mtk_smmu_power_put(u32 smmu_type)
 {
 	return -1;
 }
+
+static inline void mtk_smmu_status_dump(struct seq_file *s, u32 smmu_type)
+{
+}
 #endif /* CONFIG_DEVICE_MODULES_ARM_SMMU_V3 */
 
 /* peri_iommu */
@@ -1940,6 +1961,14 @@ static int mtk_smmu_pgtable_fops_proc_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
+static int mtk_smmu_status_fops_proc_show(struct seq_file *s, void *unused)
+{
+	if (smmu_v3_enable)
+		mtk_smmu_status_dump(s, MM_SMMU);
+
+	return 0;
+}
+
 /* adb shell cat /proc/iommu_debug/xxx */
 DEFINE_PROC_FOPS_RO(mtk_iommu_help_fops);
 DEFINE_PROC_FOPS_RO(mtk_iommu_dump_fops);
@@ -1947,6 +1976,7 @@ DEFINE_PROC_FOPS_RO(mtk_iommu_iova_alloc_fops);
 DEFINE_PROC_FOPS_RO(mtk_iommu_iova_map_fops);
 DEFINE_PROC_FOPS_RO(mtk_smmu_wp_fops);
 DEFINE_PROC_FOPS_RO(mtk_smmu_pgtable_fops);
+DEFINE_PROC_FOPS_RO(mtk_smmu_status_fops);
 
 static void mtk_iommu_trace_init(struct mtk_m4u_data *data)
 {
@@ -2121,6 +2151,11 @@ static int m4u_debug_init(struct mtk_m4u_data *data)
 			S_IFREG | 0640, data->debug_root, &mtk_smmu_pgtable_fops, NULL);
 		if (IS_ERR_OR_NULL(debug_file))
 			pr_err("failed to proc_create smmu_pgtable file\n");
+
+		debug_file = proc_create_data("smmu_status",
+			S_IFREG | 0640, data->debug_root, &mtk_smmu_status_fops, NULL);
+		if (IS_ERR_OR_NULL(debug_file))
+			pr_err("failed to proc_create smmu_status file\n");
 	}
 
 	mtk_iommu_trace_init(data);

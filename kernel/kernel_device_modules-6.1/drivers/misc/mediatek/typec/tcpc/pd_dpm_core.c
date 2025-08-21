@@ -272,7 +272,7 @@ void pd_dpm_start_pps_request(struct pd_port *pd_port, bool en)
 {
 	struct tcpc_device __maybe_unused *tcpc = pd_port->tcpc;
 
-	DPM_INFO("pps (%s)\n", en ? "start" : "end");
+	DPM_INFO2("pps (%s)\n", en ? "start" : "end");
 	if (en) {
 		pm_stay_awake(&tcpc->dev);
 		pd_restart_timer(pd_port, PD_TIMER_PPS_REQUEST);
@@ -2037,7 +2037,7 @@ void pd_dpm_inform_pps_status(struct pd_port *pd_port)
 
 	if (dpm_check_ext_msg_event(pd_port, PD_EXT_PPS_STATUS)) {
 		ppssdb = pd_get_msg_data_payload(pd_port);
-		DPM_INFO2("mv=%d, ma=%d\n",
+		DPM_INFO("mv=%d, ma=%d\n",
 			PD_PPS_GET_OUTPUT_MV(ppssdb->output_vol_raw),
 			PD_PPS_GET_OUTPUT_MA(ppssdb->output_curr_raw));
 	}
@@ -2088,7 +2088,7 @@ void pd_dpm_dynamic_enable_vconn(struct pd_port *pd_port)
 		return;
 
 	if (pd_port->vconn_role == PD_ROLE_VCONN_DYNAMIC_OFF) {
-		DPM_INFO2("DynamicVCEn\n");
+		DPM_INFO("DynamicVCEn\n");
 		pd_set_vconn(pd_port, PD_ROLE_VCONN_DYNAMIC_ON);
 	}
 }
@@ -2120,7 +2120,7 @@ void pd_dpm_dynamic_disable_vconn(struct pd_port *pd_port)
 		return;
 
 	if (pd_port->vconn_role != PD_ROLE_VCONN_DYNAMIC_OFF) {
-		DPM_INFO2("DynamicVCDis\n");
+		DPM_INFO("DynamicVCDis\n");
 		pd_set_vconn(pd_port, PD_ROLE_VCONN_DYNAMIC_OFF);
 	}
 }

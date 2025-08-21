@@ -227,9 +227,9 @@
 #include "p2p_ie.h"
 #include "p2p_role.h"
 
-#include "p2p_func.h"
 #include "p2p_scan.h"
 #include "p2p_dev.h"
+#include "p2p_func.h"
 #include "p2p_fsm.h"
 #include "p2p_link.h"
 #endif

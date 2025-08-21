@@ -2119,6 +2119,16 @@ static int mtk_mipi_tx_pll_dphy_config_mt6989(struct mtk_mipi_tx *mipi_tx)
 		mipi_volt = 0xF;
 	else if (oplus_enhance_mipi_strength == 2)
 		mipi_volt = 0xE;
+	else if (oplus_enhance_mipi_strength == 3)
+		mipi_volt = 0xD;
+	else if (oplus_enhance_mipi_strength == 4)
+		mipi_volt = 0xC;
+	else if (oplus_enhance_mipi_strength == 5)
+		mipi_volt = 0xB;
+	else if (oplus_enhance_mipi_strength == 6)
+		mipi_volt = 0xA;
+	else if (oplus_enhance_mipi_strength == 7)
+		mipi_volt = 0x9;
 
 	/* change the mipi_volt */
 	if (mipi_volt) {
@@ -3286,6 +3296,16 @@ static int mtk_mipi_tx_pll_prepare_mt6897(struct clk_hw *hw)
 		mipi_volt = 0xF;
 	else if (oplus_enhance_mipi_strength == 2)
 		mipi_volt = 0xE;
+	else if (oplus_enhance_mipi_strength == 3)
+		mipi_volt = 0xD;
+	else if (oplus_enhance_mipi_strength == 4)
+		mipi_volt = 0xC;
+	else if (oplus_enhance_mipi_strength == 5)
+		mipi_volt = 0xB;
+	else if (oplus_enhance_mipi_strength == 6)
+		mipi_volt = 0xA;
+	else if (oplus_enhance_mipi_strength == 7)
+		mipi_volt = 0x9;
 
 	/* change the mipi_volt */
 	if (mipi_volt) {

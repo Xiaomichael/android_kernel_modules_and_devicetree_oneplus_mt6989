@@ -294,6 +294,7 @@ _fail_disable_gps_slp_prot:
 			/* not handle it, just show warning */
 			GDL_LOGE("_fail_enable_gps_slp_prot - gps2conn tx");
 			ret = -1;
+			goto _fail_enable_gps_slp_prot;
 		}
 
 		poll_okay = gps_dl_hw_gps_sleep_prot_ctrl_gps2conn_rx(op);
@@ -301,6 +302,7 @@ _fail_disable_gps_slp_prot:
 			/* From DE: need to trigger connsys reset */
 			GDL_LOGE("_fail_enable_gps_slp_prot - gps2conn rx");
 			ret = -1;
+			goto _fail_enable_gps_slp_prot;
 		}
 
 		poll_okay = gps_dl_hw_gps_sleep_prot_ctrl_conn2gps_tx(op);
@@ -308,12 +310,15 @@ _fail_disable_gps_slp_prot:
 			/* From DE: need to trigger connsys reset */
 			GDL_LOGE("_fail_enable_gps_slp_prot - conn2gps tx");
 			ret = -1;
+			goto _fail_enable_gps_slp_prot;
 		}
 
 		poll_okay = gps_dl_hw_gps_sleep_prot_ctrl_conn2gps_rx(op);
 		if (!poll_okay) {
 			/* not handle it, just show warning */
 			GDL_LOGE("_fail_enable_gps_slp_prot - conn2gps rx");
+			ret = -1;
+			goto _fail_enable_gps_slp_prot;
 		}
 
 		/* AXI */
@@ -334,9 +339,9 @@ _fail_disable_gps_slp_prot:
 		return ret;
 
 _fail_enable_gps_slp_prot:
-		/* trigger reset on outer function */
 		gps_mcudl_hal_mcu_show_pc_log();
 		gps_dl_slp_prot_fail_and_dump();
+		/* trigger reset on outer function */
 		return -1;
 	}
 	return 0;

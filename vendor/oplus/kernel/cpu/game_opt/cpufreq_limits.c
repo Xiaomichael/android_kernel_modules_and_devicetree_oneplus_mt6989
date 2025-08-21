@@ -41,6 +41,10 @@ static DEFINE_PER_CPU(struct freq_qos_request, qos_req_max);
 
 static cpumask_var_t limit_cpumask;
 
+static atomic_t ready_for_freq_updates = ATOMIC_INIT(0);
+static struct hrtimer reinit_hrtimer;
+static struct work_struct reinit_work;
+
 /*
  * sameone[uah] can disable GPA cpufreq limit,
  * by writing 1 to /proc/game_opt/disable_cpufreq_limit.
@@ -305,6 +309,10 @@ static void __ed_freq_boost_request(void)
 
 void ed_freq_boost_request(unsigned int boost_type)
 {
+	if (atomic_read(&ready_for_freq_updates) == 0) {
+		return;
+	}
+
 	mutex_lock(&g_mutex);
 
 	if (boost_type > ED_BOOST_NONE) {
@@ -338,6 +346,10 @@ void ch_freq_boost_request(cpumask_var_t control_cpumask, enum CH_BOOST_ACTION a
 	struct freq_qos_request *req;
 	unsigned int gpa_min, edb_min, fst_min, flt_min, ctb_min, htb_min, final_min;
 	unsigned int gpa_max, edb_max, fst_max, flt_max, ctb_max, htb_max, final_max;
+
+	if (atomic_read(&ready_for_freq_updates) == 0) {
+		return;
+	}
 
 	mutex_lock(&g_mutex);
 	if (disable_cpufreq_limit) {
@@ -1448,12 +1460,11 @@ static const struct proc_ops disable_cpufreq_limit_proc_ops = {
 	.proc_lseek		= default_llseek,
 };
 
-int cpufreq_limits_init(void)
+int __cpufreq_limits_init(void)
 {
 	int ret;
 
-	if (!alloc_cpumask_var(&limit_cpumask, GFP_KERNEL))
-		return -ENOMEM;
+	pr_info("%s: into\n", __func__);
 
 	ret = freq_qos_request_init();
 	if (ret) {
@@ -1475,6 +1486,43 @@ int cpufreq_limits_init(void)
 	proc_create_data("chtb_cpu_min_freq", 0664, game_opt_dir, &chtb_cpu_min_freq_proc_ops, NULL);
 	proc_create_data("chtb_cpu_max_freq", 0664, game_opt_dir, &chtb_cpu_max_freq_proc_ops, NULL);
 	proc_create_data("disable_cpufreq_limit", 0664, game_opt_dir, &disable_cpufreq_limit_proc_ops, NULL);
+
+	atomic_set(&ready_for_freq_updates, 1);
+
+	return 0;
+}
+
+static void reinit_cpufreq_limits(struct work_struct *work)
+{
+	int ret;
+
+	ret = __cpufreq_limits_init();
+	if (ret) {
+		hrtimer_start(&reinit_hrtimer, ktime_set(1, 0), HRTIMER_MODE_REL);
+	}
+}
+
+static enum hrtimer_restart reinit_hrtimer_callback(struct hrtimer *timer)
+{
+	schedule_work(&reinit_work);
+	return HRTIMER_NORESTART;
+}
+
+int cpufreq_limits_init(void)
+{
+	int ret;
+
+	if (!alloc_cpumask_var(&limit_cpumask, GFP_KERNEL))
+		return -ENOMEM;
+
+	ret = __cpufreq_limits_init();
+	if (ret) {
+		INIT_WORK(&reinit_work, reinit_cpufreq_limits);
+
+		hrtimer_init(&reinit_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		reinit_hrtimer.function = reinit_hrtimer_callback;
+		hrtimer_start(&reinit_hrtimer, ktime_set(1, 0), HRTIMER_MODE_REL);
+	}
 
 	return 0;
 }

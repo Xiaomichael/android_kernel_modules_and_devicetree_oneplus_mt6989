@@ -94,6 +94,7 @@ struct dvfs_params {
 	u8 mmdvfs_in_adaptive; /* need send dvfs/mmqos request to vcp*/
 	u8 init_boost;
 	u32 last_boost_time;
+	s32 cpu_uclamp_min;
 };
 
 struct vcodec_inst *get_inst(struct mtk_vcodec_ctx *ctx);

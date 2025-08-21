@@ -21,7 +21,7 @@
 #include "pd_core.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define PE_STATE_FULL_NAME	1
+#define PE_STATE_FULL_NAME	0
 
 #define TCPC_NORMAL_RP_DUTY	(308)		/* 30% */
 
@@ -78,6 +78,8 @@ int tcpci_set_cc(struct tcpc_device *tcpc, int pull);
 int tcpci_set_vbus_short_cc_en(struct tcpc_device *tcpc, bool cc1, bool cc2);
 int tcpci_notify_vbus_short_cc_status(struct tcpc_device *tcpc,
 				      bool vsc_status, bool short_cc);
+int tcpci_set_usb_dpdm_pull_low(struct tcpc_device *tcpc, bool enable);
+
 
 static inline int __tcpci_set_cc(struct tcpc_device *tcpc, int pull)
 {
@@ -166,6 +168,7 @@ int tcpci_enable_auto_discharge(struct tcpc_device *tcpc, bool en);
 int tcpci_enable_force_discharge(struct tcpc_device *tcpc, bool en, int mv);
 int tcpci_notify_ps_change(struct tcpc_device *tcpc, int vbus_level);
 int tcpci_notify_cc_hi(struct tcpc_device *tcpc, int cc_hi);
+int tcpci_notify_alert_ratelimited(struct tcpc_device *tcpc, bool limited);
 
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 

@@ -3277,6 +3277,16 @@ static void clear_layer(struct drm_mtk_layering_info *disp_info,
 			}
 		}
 
+		if ((priv->data->mmsys_id == MMSYS_MT6878) &&
+			mtk_has_layer_cap(c, MTK_DISP_CLIENT_CLEAR_LAYER) &&
+			mtk_has_layer_cap(c, MTK_MML_DISP_NOT_SUPPORT) &&
+			mtk_has_layer_cap(c, MTK_MDP_ROT_LAYER)) {
+			c->layer_caps &= ~MTK_DISP_CLIENT_CLEAR_LAYER;
+			mtk_rollback_layer_to_GPU(disp_info, di, top);
+			DDPMSG("%s:remove clear(mml_disp_not_support), caps:0x%08x\n",
+			       __func__, c->layer_caps);
+		}
+
 		if (mtk_has_layer_cap(c, MTK_DISP_CLIENT_CLEAR_LAYER)) {
 			*scn_decision_flag |= SCN_CLEAR;
 			DDPMSG("%s add hrt weight\n", __func__);

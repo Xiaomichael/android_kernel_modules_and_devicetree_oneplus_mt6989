@@ -111,7 +111,7 @@ void migr_running_task_systrace(
 		if (IS_ERR_OR_NULL(ots))
 			return;
 
-		ux_state = ots->ux_state & (SCHED_ASSIST_UX_MASK | SA_TYPE_INHERIT);
+		ux_state = get_ots_ux_state(ots);
 		if (!ux_state)
 			return;
 
@@ -145,7 +145,7 @@ void migr_runnable_task_systrace(
 		if (IS_ERR_OR_NULL(ots))
 			return;
 
-		ux_state = ots->ux_state & (SCHED_ASSIST_UX_MASK | SA_TYPE_INHERIT);
+		ux_state = get_ots_ux_state(ots);
 		if (!ux_state)
 			return;
 
@@ -167,7 +167,7 @@ __maybe_unused void runnable_time_systrace(
 		if (IS_ERR_OR_NULL(ots))
 			return;
 
-		ux_state = ots->ux_state & (SCHED_ASSIST_UX_MASK | SA_TYPE_INHERIT);
+		ux_state = get_ots_ux_state(ots);
 		if (!ux_state)
 			return;
 
@@ -189,7 +189,7 @@ __maybe_unused void record_runnable_time_systrace(
 		if (IS_ERR_OR_NULL(ots))
 			return;
 
-		ux_state = ots->ux_state & (SCHED_ASSIST_UX_MASK | SA_TYPE_INHERIT);
+		ux_state = get_ots_ux_state(ots);
 		if (!ux_state)
 			return;
 
@@ -211,7 +211,7 @@ __maybe_unused void record_exec_time_systrace(
 		if (IS_ERR_OR_NULL(ots))
 			return;
 
-		ux_state = ots->ux_state & (SCHED_ASSIST_UX_MASK | SA_TYPE_INHERIT);
+		ux_state = get_ots_ux_state(ots);
 		if (!ux_state)
 			return;
 
@@ -248,7 +248,7 @@ void newidle_migr_ux_systrace(
 		if (IS_ERR_OR_NULL(ots))
 			return;
 
-		ux_state = ots->ux_state & (SCHED_ASSIST_UX_MASK | SA_TYPE_INHERIT);
+		ux_state = get_ots_ux_state(ots);
 		if (!ux_state)
 			return;
 
@@ -789,7 +789,7 @@ bool test_task_ux_lb(struct task_struct *task)
 	 * Only the following 3 types of ux threads need to
 	 * be balanced.
 	 */
-	if (get_ux_state(task) & SCHED_ASSIST_LB_UX)
+	if (oplus_get_ux_state(task) & SCHED_ASSIST_LB_UX)
 		return true;
 
 	return false;
@@ -1099,7 +1099,8 @@ bool ux_need_up_migration(struct task_struct *p, struct rq *rq)
  *                          with smaller capacity to CPUs with larger capacity.
  * TICKPULL_MIGR_RUNNABLE : pull long-runnable tasks from other CPUs. Unlike
  *                          TICKPULL_MIGR_RUNNING, tasks can be migrated to
- *                          CPUs with the same capacity.
+ *                          CPUs with the same capacity  or little util tasks
+ *                          can been migrated to small cores.
  */
 enum migr_type {
 	DOWN_MIGR = 1,
@@ -1182,7 +1183,7 @@ enum migr_type {
  *
  * TICKPULL_MIGR_RUNNABLE
  * cur_idx    order_idx   walk_cnt
- *    0            0          1
+ *    0            0          3    (only little util task can been migrated to small cores)
  *    1            1          3
  *    2            2          1
  *
@@ -1268,10 +1269,14 @@ bool calc_order_idx(enum migr_type type,
 		break;
 	case TICKPULL_MIGR_RUNNABLE:
 		*order_idx = curr_cls;
-		if ((cls_nr >= 3) && (curr_cls == cls_nr-2)) {
-			*walk_cnt = cls_nr;
-		} else {
+		/*
+		 * When curr_cls is biggest cores, only allow pull other biggest cores' task to it,
+		 * meanwhile, will allow sliver cores to pull other cores' task to it after ajust the logic.
+		 */
+		if (curr_cls == cls_nr-1) {
 			*walk_cnt = 1;
+		} else {
+			*walk_cnt = cls_nr;
 		}
 		break;
 	default:
@@ -1329,7 +1334,7 @@ int find_cpu_in_migration(struct task_struct *p,
 #ifdef DEBUG_LB_TICK
 			trace_printk("OPLUS_LB_TICK[%d]: cpu=%d, curr=%s$%d$%d, "
 				"oah=%d-%d-%d, has_ux=%d, has_rt=%d\n",
-				__LINE__, cpu, curr->comm, curr->pid, get_ux_state(curr),
+				__LINE__, cpu, curr->comm, curr->pid, oplus_get_ux_state(curr),
 				cpu_online(cpu), cpu_active(cpu), oplus_cpu_halted(cpu),
 				orq_has_ux_tasks(orq), rt_rq_is_runnable(&rq->rt));
 #endif
@@ -1353,7 +1358,7 @@ int find_cpu_in_migration(struct task_struct *p,
 			/*
 			 * Ignore those CPUs if there is a ux/rt task running on it.
 			 */
-			if (get_ux_state(curr) & POSSIBLE_UX_MASK)
+			if (oplus_get_ux_state(curr) & POSSIBLE_UX_MASK)
 				continue;
 
 			if (curr->prio < MAX_RT_PRIO)
@@ -1905,7 +1910,7 @@ u64 oplus_get_runnable_time(int cpu, struct task_struct *p)
 	if (IS_ERR_OR_NULL(ots))
 		return 0;
 
-	if (!(ots->ux_state & SCHED_ASSIST_LB_UX))
+	if (!(get_ots_ux_state(ots) & SCHED_ASSIST_LB_UX))
 		return 0;
 
 	return get_runnable_time(p);
@@ -1942,7 +1947,7 @@ static struct task_struct *oplus_pick_runnable_ux(
 			continue;
 
 		/* this ux type does not require balance. */
-		if (!(ots->ux_state & SCHED_ASSIST_LB_UX))
+		if (!(get_ots_ux_state(ots) & SCHED_ASSIST_LB_UX))
 			continue;
 
 		/* affinify */
@@ -1963,7 +1968,7 @@ static struct task_struct *oplus_pick_runnable_ux(
 		trace_printk("OPLUS_LB_TICK[%d]: task=%s$%d, ux_state=%d, "
 			"on_cpu=%d, on_rq=%d, "
 			"runnable_time=%llu, threshold_time=%llu, true=%d\n",
-			__LINE__, task->comm, task->pid, ots->ux_state,
+			__LINE__, task->comm, task->pid, get_ots_ux_state(ots),
 			task->on_cpu, task->on_rq,
 			runnable_time, threshold_time, runnable_time >= threshold_time);
 #endif
@@ -1989,6 +1994,7 @@ static noinline bool oplus_migrate_runnable_ux(void *data, struct rq *rq)
 	unsigned int this_cpu = cpu_of(rq);
 	int new_cpu = -1;
 	bool ret = false;
+	bool ux_cls_boost = false;
 
 	/*
 	 * Pick a ux_task that has been in the runnable state for a long time.
@@ -2001,6 +2007,11 @@ static noinline bool oplus_migrate_runnable_ux(void *data, struct rq *rq)
 	 * Choose a suitable cpu for this ux_task.
 	 */
 	new_cpu = find_cpu_in_migration(ux_task, this_cpu, NORMAL_MIGR, false);
+	if (new_cpu < 0) {
+		ux_cls_boost = get_task_cls_for_scene(ux_task) > 0 ? true : false;
+		if (!ux_cls_boost && !is_task_util_over(ux_task, BOOST_THRESHOLD_UNIT))
+			new_cpu = find_cpu_in_migration(ux_task, this_cpu, DOWN_MIGR, false);
+	}
 	if (new_cpu < 0)
 		return false;
 
@@ -2322,7 +2333,7 @@ static noinline bool oplus_tickpull_runnable_rt(void *data,
 	if (test_task_is_rt(curr))
 		return false;
 
-	if (get_ux_state(curr) & POSSIBLE_UX_MASK)
+	if (oplus_get_ux_state(curr) & POSSIBLE_UX_MASK)
 		return false;
 
 	/*
@@ -2414,6 +2425,15 @@ static noinline bool oplus_tickpull_runnable_rt(void *data,
 				continue;
 			}
 
+			/*
+			 * Just allow big cores' <light util> rt task can been pulled to sliver core.
+			 */
+			if (cur_cls == 0 && topology_cluster_id(iter_cpu) > 0 &&
+				is_task_util_over(rt_task, BOOST_THRESHOLD_UNIT)) {
+				rq_unlock(busiest_rq, &rf);
+				continue;
+			}
+
 #ifdef DEBUG_LB_RT_TICK
 			trace_printk("OPLUS_LB_TICKPULL[%d]: this_cpu=%d, curr=%s$%d, "
 				"busiest_cpu=%d, rt_task=%s$%d,\n",
@@ -2470,7 +2490,7 @@ static noinline bool oplus_tickpull_running_ux(void *data, struct rq *rq)
 	if (test_task_is_rt(curr))
 		return false;
 
-	if (get_ux_state(curr) & POSSIBLE_UX_MASK)
+	if (oplus_get_ux_state(curr) & POSSIBLE_UX_MASK)
 		return false;
 
 	/*
@@ -2614,7 +2634,7 @@ static noinline bool oplus_tickpull_runnable_ux(void *data, struct rq *rq)
 	if (test_task_is_rt(curr))
 		return false;
 
-	if (get_ux_state(curr) & POSSIBLE_UX_MASK)
+	if (oplus_get_ux_state(curr) & POSSIBLE_UX_MASK)
 		return false;
 
 	/*
@@ -2689,6 +2709,15 @@ static noinline bool oplus_tickpull_runnable_ux(void *data, struct rq *rq)
 			 */
 			iter_task = oplus_pick_runnable_ux(iter_cpu, this_cpu, NULL);
 			if (!iter_task) {
+				rq_unlock(iter_rq, &rf);
+				continue;
+			}
+
+			/*
+			 * Just allow big cores' <light util && no ux_boost> ux task can been pulled to sliver core.
+			 */
+			if (cur_cls == 0 && topology_cluster_id(iter_cpu) > 0 &&
+				(is_task_util_over(iter_task, BOOST_THRESHOLD_UNIT) || get_task_cls_for_scene(iter_task) > 0)) {
 				rq_unlock(iter_rq, &rf);
 				continue;
 			}

@@ -15,6 +15,8 @@
 
 #include "game_ctrl.h"
 
+#include "task_boost/heavy_task_boost.h"
+#include "critical_task_boost.h"
 /*
  * render related thread wake information
  */
@@ -157,6 +159,15 @@ static void try_to_wake_up_success_hook(void *unused, struct task_struct *task)
 unlock:
 		write_unlock(&rt_info_rwlock);
 	}
+	heavy_task_boost(task, related_threads, total_num);
+}
+
+static bool need_tracked_task(char *name)
+{
+	bool skip = strstr(name, "binder:") || strstr(name, "HwBinder:") ||
+				strstr(name, "AudioTrack") || strstr(name, "NativeThread");
+
+	return !skip;
 }
 
 /*
@@ -185,8 +196,10 @@ static int rt_info_show(struct seq_file *m, void *v)
 	struct render_related_thread *results;
 	char *page;
 	char task_name[TASK_COMM_LEN];
+	pid_t tracked_pids[MAX_TRACKED_TASK_NUM];
+	int tracked_pid_num = 0;
 	ssize_t len = 0;
-
+	reset_critical_task_time();
 	if (atomic_read(&have_valid_render_pid) == 0)
 		return -ESRCH;
 
@@ -225,10 +238,18 @@ static int rt_info_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < result_num && i < MAX_TASK_NR; i++) {
 		if (get_task_name(results[i].pid, results[i].task, task_name)) {
+			if ((tracked_pid_num < MAX_TRACKED_TASK_NUM) && need_tracked_task(task_name)) {
+				tracked_pids[tracked_pid_num] = results[i].pid;
+				tracked_pid_num++;
+			}
+
 			len += snprintf(page + len, RESULT_PAGE_SIZE - len, "%d;%s;%u\n",
 				results[i].pid, task_name, results[i].wake_count);
 		}
 	}
+
+	if (tracked_pid_num > 0)
+		add_tasks_to_frame_group(tracked_pids, tracked_pid_num);
 
 	if (len > 0)
 		seq_puts(m, page);
@@ -378,6 +399,30 @@ static void register_rt_info_vendor_hooks(void)
 {
 	/* Register vender hook in kernel/sched/core.c */
 	register_trace_android_rvh_try_to_wake_up_success(try_to_wake_up_success_hook, NULL);
+}
+
+int get_critical_task_state(const char *name, pid_t pid)
+{
+	struct task_struct *task = NULL;
+	int name_len, i;
+	if (total_num <= 0 || atomic_read(&have_valid_render_pid) == 0) {
+		return -1;
+	}
+	name_len = strlen(name);
+	for (i = 0; i < total_num; i++) {
+		if (related_threads[i].task && strncmp(name, related_threads[i].task->comm, name_len) == 0) {
+			task = related_threads[i].task;
+			break;
+		}
+	}
+	if (task == NULL || task_pid_nr(task) != pid) {
+		return -1;
+	}
+	if (task_is_running(task)) {
+		return 0;
+	} else {
+		return 1;
+	}
 }
 
 int rt_info_init(void)

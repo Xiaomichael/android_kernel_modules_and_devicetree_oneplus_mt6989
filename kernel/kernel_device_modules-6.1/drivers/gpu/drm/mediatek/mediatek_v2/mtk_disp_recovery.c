@@ -794,8 +794,8 @@ static int mtk_drm_esd_check_worker_kthread(void *data)
 
 #ifdef OPLUS_FEATURE_DISPLAY
 			if (read_ddic_once && comp && esd_ctx->crtc) {
-				if (mtk_dsi_is_cmd_mode(comp) || prj_id == 24891 || prj_id == 24892
-					|| prj_id == 24825 || prj_id == 24622 || prj_id == 24769 || prj_id == 24749) {
+				if (mtk_dsi_is_cmd_mode(comp) || prj_id == 24891 || prj_id == 24892 || prj_id == 24035 || prj_id == 24345
+					|| prj_id == 24825 || prj_id == 24622 || prj_id == 24769 || prj_id == 24749 || prj_id == 24780) {
 					panel_id_read(esd_ctx->crtc);
 					usleep_range(3000, 3100);
 					DDPMSG("[ESD] get panel_serial_number\n");
@@ -891,6 +891,10 @@ void mtk_disp_esd_check_switch(struct drm_crtc *crtc, bool enable)
 	atomic_set(&esd_ctx->check_wakeup, enable);
 	if (enable)
 		wake_up_interruptible(&esd_ctx->check_task_wq);
+
+#ifdef OPLUS_FEATURE_DISPLAY
+	esd_ctx->esd_check_cnt = 0;
+#endif
 }
 
 static void mtk_disp_esd_chk_deinit(struct drm_crtc *crtc)

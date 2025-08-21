@@ -1132,7 +1132,7 @@ static int sc8547_voocphy_init_vooc(struct oplus_voocphy_manager *voocphy)
 	return 0;
 }
 
-static int sc8547_svooc_hw_setting(struct sc8547a_device *chip)
+static int sc8547_svooc_hw_setting(struct sc8547a_device *chip, bool wdt_cfg)
 {
 	u8 reg_data;
 	sc8547_write_byte(chip->client, SC8547_REG_02, 0x01); /*VAC_OVP:12v*/
@@ -1144,7 +1144,10 @@ static int sc8547_svooc_hw_setting(struct sc8547a_device *chip)
 
 	sc8547_write_byte(chip->client, SC8547_REG_05,
 			  reg_data); /*IBUS_OCP_UCP:3.6A*/
-	sc8547_write_byte(chip->client, SC8547_REG_09, 0x13); /*WD:1000ms*/
+	if (wdt_cfg)
+		sc8547_write_byte(chip->client, SC8547_REG_09, 0x13); /* WD:1000ms */
+	else
+		sc8547_update_bits(chip->client, SC8547_REG_09, 0x90, 0x10); /* 2:1, IBUS_UCP_RISE_MASK */
 	sc8547_write_byte(chip->client, SC8547_REG_11,
 			  0x80); /*ADC_CTRL:ADC_EN*/
 	sc8547_write_byte(chip->client, SC8547_REG_0D, 0x70);
@@ -1155,7 +1158,7 @@ static int sc8547_svooc_hw_setting(struct sc8547a_device *chip)
 	return 0;
 }
 
-static int sc8547_vooc_hw_setting(struct sc8547a_device *chip)
+static int sc8547_vooc_hw_setting(struct sc8547a_device *chip, bool wdt_cfg)
 {
 	sc8547_write_byte(chip->client, SC8547_REG_02, 0x07); /*VAC_OVP:6.5*/
 	sc8547_write_byte(chip->client, SC8547_REG_04, chip->vooc_vbus_ovp_reg); /*VBUS_OVP:*/
@@ -1163,7 +1166,10 @@ static int sc8547_vooc_hw_setting(struct sc8547a_device *chip)
 		sc8547_write_byte(chip->client, SC8547_REG_05, 0x1c); /*IBUS_OCP_UCP:*/
 	else
 		sc8547_write_byte(chip->client, SC8547_REG_05, 0x2c);
-	sc8547_write_byte(chip->client, SC8547_REG_09, 0x93); /*WD:1000ms*/
+	if (wdt_cfg)
+		sc8547_write_byte(chip->client, SC8547_REG_09, 0x93); /* WD:1000ms */
+	else
+		sc8547_update_bits(chip->client, SC8547_REG_09, 0x90, 0x90); /* 1:1, IBUS_UCP_RISE_MASK */
 	sc8547_write_byte(chip->client, SC8547_REG_11, 0x80); /*ADC_CTRL:*/
 	sc8547_write_byte(chip->client, SC8547_REG_33, 0xd1); /*Loose_det*/
 	sc8547_write_byte(chip->client, SC8547_REG_3A, 0x60);
@@ -1220,11 +1226,11 @@ static int sc8547_voocphy_hw_setting(struct oplus_voocphy_manager *voocphy, int 
 		chg_info("SETTING_REASON_RESET OR PROBE\n");
 		break;
 	case SETTING_REASON_SVOOC:
-		sc8547_svooc_hw_setting(chip);
+		sc8547_svooc_hw_setting(chip, true);
 		chg_info("SETTING_REASON_SVOOC\n");
 		break;
 	case SETTING_REASON_VOOC:
-		sc8547_vooc_hw_setting(chip);
+		sc8547_vooc_hw_setting(chip, true);
 		chg_info("SETTING_REASON_VOOC\n");
 		break;
 	case SETTING_REASON_5V2A:
@@ -1805,7 +1811,6 @@ static int sc8547_irq_register(struct sc8547a_device *chip)
 				voocphy->irq, ret);
 			return ret;
 		}
-		enable_irq_wake(voocphy->irq);
 		chg_debug("request irq ok\n");
 	}
 
@@ -2161,9 +2166,9 @@ static int sc8547a_cp_set_work_mode(struct oplus_chg_ic_dev *ic_dev, enum oplus_
 	}
 
 	if (mode == CP_WORK_MODE_BYPASS)
-		rc = sc8547_vooc_hw_setting(chip);
+		rc = sc8547_vooc_hw_setting(chip, false);
 	else
-		rc = sc8547_svooc_hw_setting(chip);
+		rc = sc8547_svooc_hw_setting(chip, false);
 
 	if (rc < 0)
 		chg_err("set work mode to %d error\n", mode);

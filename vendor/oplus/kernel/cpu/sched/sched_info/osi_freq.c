@@ -48,13 +48,13 @@ void get_cpufreq_info(bool *is_sample)
 			orig_min_id = cpufreq_table_find_index(pol, pol->cpuinfo.min_freq);
 			osi_debug("cpu:%d,pol->cur:%d,idx:%d min_idx:%d,max_idx:%d,orig_min_idx:%d,orig_max_idx:%d",
 				start_cpu, pol->cur, cur_idx, min_idx, max_idx, orig_min_id, orig_max_id);
-#ifdef CONFIG_ARCH_MEDIATEK
-			if ((max_idx < orig_min_id - 2) && (cur_idx <= min_idx - 2))
-				*is_sample = true;
-#else
-			if ((max_idx > 2) && (cur_idx >= max_idx - 2))
-				*is_sample = true;
-#endif
+			if (pol->freq_table_sorted == CPUFREQ_TABLE_SORTED_DESCENDING) {
+				if ((max_idx <= orig_min_id - 4) && (cur_idx <= max_idx + 2))
+					*is_sample = true;
+			} else {
+				if ((max_idx >= orig_min_id + 4) && (cur_idx >= max_idx - 2))
+					*is_sample = true;
+			}
 			cpufreq_cpu_put(pol);
 		}
 	}

@@ -38,15 +38,14 @@
 #define TCPC_DBG_ENABLE		0
 #define TCPC_DBG2_ENABLE	0
 #define DPM_INFO_ENABLE		1
-#define DPM_INFO2_ENABLE	1
+#define DPM_INFO2_ENABLE	0
 #define DPM_DBG_ENABLE		0
 #define PD_ERR_ENABLE		1
 #define PE_DBG_ENABLE		0
 #define TYPEC_DBG_ENABLE	0
 
-
 #define DP_INFO_ENABLE		1
-#define DP_DBG_ENABLE		1
+#define DP_DBG_ENABLE		0
 
 #define TCPM_DBG_ENABLE		1
 
@@ -63,7 +62,6 @@
 /* Disable VDM DBG Msg */
 #define PE_STATE_INFO_VDM_DIS	0
 #define PE_EVT_INFO_VDM_DIS	0
-#define PE_DBG_RESET_VDM_DIS	1
 
 #define PD_BUG_ON(x)	WARN_ON(x)
 
@@ -115,6 +113,7 @@ struct tcpc_desc {
 #define TCPC_REG_ALERT_EXT_VBUS_80		(1<<(16+1))
 #define TCPC_REG_ALERT_EXT_WAKEUP		(1<<(16+0))
 
+#define TCPC_REG_ALERT_VENDOR_DEFINED (1<<15)
 #define TCPC_REG_ALERT_VBUS_DISCNCT (1<<11)
 #define TCPC_REG_ALERT_RX_BUF_OVF   (1<<10)
 #define TCPC_REG_ALERT_FAULT        (1<<9)
@@ -209,6 +208,9 @@ struct tcpc_ops {
 	int (*alert_vendor_defined_handler)(struct tcpc_device *tcpc);
 	int (*set_auto_dischg_discnt)(struct tcpc_device *tcpc, bool en);
 	int (*get_vbus_voltage)(struct tcpc_device *tcpc, u32 *vbus);
+#if IS_ENABLED(CONFIG_OPLUS_LIQUID_DETECTION)
+	int (*get_lpd_info)(struct tcpc_device *tcpc, u32 *buf, u32 flag);
+#endif /* OPLUS_LIQUID_DETECTION */
 
 #if CONFIG_WATER_DETECTION
 	int (*set_water_protection)(struct tcpc_device *tcpc, bool en);
@@ -219,6 +221,8 @@ struct tcpc_ops {
 	int (*set_vbus_short_cc_en)(struct tcpc_device *tcpc, bool cc1, bool cc2);
 
 	int (*set_low_power_mode)(struct tcpc_device *tcpc, bool en, int pull);
+	int (*set_usb_dpdm_pull_low)(
+			struct tcpc_device *tcpc, bool enable);
 
 #if CONFIG_TYPEC_CAP_AUTO_DISCHARGE
 #if CONFIG_TCPC_AUTO_DISCHARGE_IC
@@ -436,6 +440,9 @@ struct tcpc_device {
 	bool typec_vbus_to_cc_en;
 	bool cc_hidet_en;
 	int cc_hi;
+
+	struct ratelimit_state alert_rs;
+	bool alert_ratelimited;
 };
 
 #define to_tcpc_device(obj) container_of(obj, struct tcpc_device, dev)

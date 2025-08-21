@@ -3956,7 +3956,8 @@ void aisFsmRunEventAbort(struct ADAPTER *prAdapter,
 			 * supplicant, must indicate the connection status,
 			 */
 			if (ucReasonOfDisconnect ==
-			    DISCONNECT_REASON_CODE_ROAMING)
+			    DISCONNECT_REASON_CODE_ROAMING &&
+			    !aisFsmIsInProcessPostpone(prAdapter, ucBssIndex))
 				aisIndicationOfMediaStateToHost(prAdapter,
 					MEDIA_STATE_CONNECTED,
 					FALSE,

@@ -56,7 +56,7 @@ void binder_buffer_watcher(void *ignore, int is_async, size_t *free_async_space,
 			goto watcher_done;
 
 	 	//if this async transaction is from surfaceflinger backgroud thread or main thread, do nothing.		
-  		if (is_surface_flinger(current)) {
+  		if (is_surface_flinger(current->group_leader)) {
 			//binder_watcher_debug("%d:%s is calling alloc binder buffer  %d\n",current->tgid, current->comm,alloc->pid);
   			goto watcher_done;
 		}

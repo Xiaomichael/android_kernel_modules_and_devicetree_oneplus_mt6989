@@ -279,7 +279,6 @@ static void mem_cgroup_css_offline_hook(void *data,
 	css_put(css);
 }
 
-#ifdef CONFIG_CONT_PTE_HUGEPAGE
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_SCHED_ASSIST)
 extern bool test_task_ux(struct task_struct *task);
 #else
@@ -330,7 +329,6 @@ static void oplus_mm_common_hook(void *unused, unsigned long *behavior, unsigned
 		break;
 	}
 }
-#endif /* CONFIG_CONT_PTE_HUGEPAGE */
 
 #define REGISTER_HOOK(name) do {\
 	rc = register_trace_android_vh_##name(name##_hook, NULL);\
@@ -358,13 +356,11 @@ static int register_all_hooks(void)
 	REGISTER_HOOK(mem_cgroup_css_online);
 	/* mem_cgroup_css_offline_hook */
 	REGISTER_HOOK(mem_cgroup_css_offline);
-#ifdef CONFIG_CONT_PTE_HUGEPAGE
 	rc = register_trace_android_vh_si_meminfo_adjust(oplus_mm_common_hook, NULL);
 	if (rc) {
 		log_err("register_trace_android_vh_si_meminfo_adjust failed\n");
 		goto err_out_si_meminfo_adjust;
 	}
-#endif
 #ifdef CONFIG_HYBRIDSWAP_SWAPD
 	/* For GKI reason we use alloc_pages_slowpath_hook rather than rmqueue_hook. Both are fine. */
 	/* rmqueue_hook */
@@ -398,10 +394,8 @@ ERROR_OUT(rmqueue): */
 	unregister_trace_android_vh_alloc_pages_slowpath(hybridswapd_ops->vh_alloc_pages_slowpath, NULL);
 ERROR_OUT(alloc_pages_slowpath):
 #endif
-#ifdef CONFIG_CONT_PTE_HUGEPAGE
 	unregister_trace_android_vh_si_meminfo_adjust(oplus_mm_common_hook, NULL);
 err_out_si_meminfo_adjust:
-#endif
 	UNREGISTER_HOOK(mem_cgroup_css_offline);
 ERROR_OUT(mem_cgroup_css_offline):
 	UNREGISTER_HOOK(mem_cgroup_css_online);
@@ -1316,6 +1310,25 @@ int mem_cgroup_app_uid_write(struct cgroup_subsys_state *css,
 	return 0;
 }
 
+s64 get_mem_cgroup_app_uid(struct mem_cgroup *memcg)
+{
+	if (!MEMCGRP_ITEM_DATA(memcg))
+		return -EPERM;
+
+	return atomic64_read(&MEMCGRP_ITEM(memcg, app_uid));
+}
+EXPORT_SYMBOL_GPL(get_mem_cgroup_app_uid);
+
+char *get_mem_cgroup_app_name(struct mem_cgroup *memcg)
+{
+	char *name = "null";
+	if (!MEMCGRP_ITEM_DATA(memcg))
+		return name;
+
+	return MEMCGRP_ITEM(memcg, name);
+}
+EXPORT_SYMBOL_GPL(get_mem_cgroup_app_name);
+
 static s64 mem_cgroup_app_uid_read(struct cgroup_subsys_state *css, struct cftype *cft)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
@@ -1511,12 +1524,14 @@ unlock:
 
 	return memcg;
 }
+EXPORT_SYMBOL_GPL(get_next_memcg);
 
 void get_next_memcg_break(struct mem_cgroup *memcg)
 {
 	if (memcg)
 		css_put(&memcg->css);
 }
+EXPORT_SYMBOL_GPL(get_next_memcg_break);
 
 static struct cftype mem_cgroup_hybridswap_legacy_files[] = {
 	{

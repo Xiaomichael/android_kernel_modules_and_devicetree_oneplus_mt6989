@@ -173,7 +173,9 @@ static bool transceiver_wakeup_check(uint8_t action, uint8_t sensor_type)
 			sensor_type == SENSOR_TYPE_OPLUS_SLEEP ||
 			sensor_type == SENSOR_TYPE_FLIGHT_SCENE ||
 			sensor_type == SENSOR_TYPE_BACKCLIP_DETECT ||
-			sensor_type == SENSOR_TYPE_HILL_SCENE))
+			sensor_type == SENSOR_TYPE_HILL_SCENE ||
+			sensor_type == SENSOR_TYPE_CHOP_DETECT ||
+			sensor_type == SENSOR_TYPE_OPLUS_FLAT))
 //#endif
 		return true;
 

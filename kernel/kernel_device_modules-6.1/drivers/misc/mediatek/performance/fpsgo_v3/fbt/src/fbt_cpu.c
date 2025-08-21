@@ -292,6 +292,8 @@ static int rl_learning_rate_p;
 static int rl_learning_rate_n;
 static int rl_expect_fps_margin;
 static int rl_ko_is_ready;
+static int target_time_up_bound;
+static int target_time_low_bound;
 static int cpumask_heavy;
 static int cpumask_second;
 static int cpumask_others;
@@ -2582,6 +2584,8 @@ void fbt_set_render_boost_attr(struct render_info *thr)
 	render_attr->quota_v2_diff_clamp_min_by_pid = quota_v2_diff_clamp_min;
 	render_attr->quota_v2_diff_clamp_max_by_pid = quota_v2_diff_clamp_max;
 	render_attr->limit_min_cap_target_t_by_pid = limit_min_cap_target_t;
+	render_attr->target_time_up_bound_by_pid = target_time_up_bound;
+	render_attr->target_time_low_bound_by_pid = target_time_low_bound;
 	render_attr->rl_deq_length_thres_by_pid = rl_deq_length_thres;
 	render_attr->aa_b_minus_idle_t_by_pid = aa_b_minus_idle_time;
 	render_attr->limit_cfreq2cap_by_pid = limit_cfreq2cap;
@@ -2773,6 +2777,12 @@ void fbt_set_render_boost_attr(struct render_info *thr)
 			pid_attr.rl_deq_length_thres_by_pid;
 	if (pid_attr.engine_cooler_enable_by_pid != BY_PID_DEFAULT_VAL)
 		render_attr->engine_cooler_enable_by_pid = pid_attr.engine_cooler_enable_by_pid;
+	if (pid_attr.target_time_up_bound_by_pid != BY_PID_DEFAULT_VAL)
+		render_attr->target_time_up_bound_by_pid =
+			pid_attr.target_time_up_bound_by_pid;
+	if (pid_attr.target_time_low_bound_by_pid != BY_PID_DEFAULT_VAL)
+		render_attr->target_time_low_bound_by_pid =
+			pid_attr.target_time_low_bound_by_pid;
 
 by_tid:
 	fpsgo_attr_tid = fpsgo_find_attr_by_tid(thr->pid, 0);
@@ -4708,7 +4718,8 @@ int fbt_cal_target_time_ns(int pid, unsigned long long buffer_id,
 	int target_fps_margin, unsigned long long last_target_t_ns, unsigned long long t_q2q_ns,
 	unsigned long long t_queue_end, unsigned long long next_vsync,
 	int expected_fps_margin, int learning_rate_p, int learning_rate_n, int quota_clamp_max,
-	int quota_diff_clamp_min, int quota_diff_clamp_max, int limit_min_cap_final,
+	int quota_diff_clamp_min, int quota_diff_clamp_max,
+	int limit_min_cap_final, int target_time_up_bound_final, int target_time_low_bound_final,
 	int separate_aa_active, long aa_n, long aa_b,
 	long aa_m, int limit_cap, int limit_cap_b, int limit_cap_m, int rl_l2q_enable_final,
 	unsigned long long expected_l2q_ns_final, unsigned long long l2q_ts, int is_logic_head_alive,
@@ -4793,8 +4804,20 @@ int fbt_cal_target_time_ns(int pid, unsigned long long buffer_id,
 			}
 		}
 out:
-		if (!ret && out_target_t_ns)
+		if (!ret && out_target_t_ns) {
 			*out_target_t_ns = rl_target_t;
+			if (target_time_up_bound_final &&
+				*out_target_t_ns > target_time_up_bound_final * target_t / 100) {
+				fpsgo_main_trace("[%s] target_t_ns upper bounded. target_t_ns=%llu, bound=%llu",
+					__func__, *out_target_t_ns, target_time_up_bound_final * target_t / 100);
+				*out_target_t_ns = target_time_up_bound_final * target_t / 100;
+			} else if (target_time_low_bound_final &&
+				*out_target_t_ns < target_time_low_bound_final * target_t / 100) {
+				fpsgo_main_trace("[%s] target_t_ns lower bounded. target_t_ns=%llu, bound=%llu",
+					__func__, *out_target_t_ns, target_time_low_bound_final * target_t / 100);
+				*out_target_t_ns = target_time_low_bound_final * target_t / 100;
+			}
+		}
 		fpsgo_systrace_c_fbt(pid, buffer_id, rl_target_t, "target_t_ns");
 		fpsgo_systrace_c_fbt(pid, buffer_id, rl_target_fpks, "expected_fpks");
 	}
@@ -4848,6 +4871,8 @@ static int fbt_boost_policy(
 	int quota_v2_diff_clamp_min_final;
 	int quota_v2_diff_clamp_max_final;
 	int limit_min_cap_target_t_final;
+	int target_time_up_bound_final = 0;
+	int target_time_low_bound_final = 0;
 	int limit_cap_b = 100, limit_cap_m = 100;
 	int limit_util = 1024, limit_util_b = 1024, limit_util_m = 1024;
 	int rl_deq_length_thres_final;
@@ -4874,7 +4899,10 @@ static int fbt_boost_policy(
 	quota_v2_diff_clamp_max_final = thread_info->attr.quota_v2_diff_clamp_max_by_pid;
 	limit_min_cap_target_t_final = thread_info->attr.limit_min_cap_target_t_by_pid;
 	rl_deq_length_thres_final = thread_info->attr.rl_deq_length_thres_by_pid;
-
+	if (!cooler_on) {
+		target_time_up_bound_final = thread_info->attr.target_time_up_bound_by_pid;
+		target_time_low_bound_final = thread_info->attr.target_time_low_bound_by_pid;
+	}
 
 	cur_ts = fpsgo_get_time();
 
@@ -4938,7 +4966,8 @@ static int fbt_boost_policy(
 		thread_info->Q2Q_time, ts, next_vsync, expected_fps_margin_final,
 		rl_learning_rate_p, rl_learning_rate_n, quota_v2_clamp_max,
 		quota_v2_diff_clamp_min_final, quota_v2_diff_clamp_max_final,
-		limit_min_cap_target_t_final,  separate_aa_final,
+		limit_min_cap_target_t_final, target_time_up_bound_final,
+		target_time_low_bound_final, separate_aa_final,
 		filtered_aa_n, filtered_aa_b, filtered_aa_m,
 		limit_max_cap, limit_cap_b, limit_cap_m, rl_l2q_enable, rl_l2q_exp_ns,
 		l2q_ts, is_logic_head_alive, &t2);
@@ -7782,6 +7811,16 @@ static ssize_t fbt_attr_by_pid_store(struct kobject *kobj,
 			boost_attr->engine_cooler_enable_by_pid = val;
 		else if (val == BY_PID_DEFAULT_VAL && action == 'u')
 			boost_attr->engine_cooler_enable_by_pid = BY_PID_DEFAULT_VAL;
+	} else if (!strcmp(cmd, "target_time_up_bound")) {
+		if ((val <= 1000 && val >= 0) && action == 's')
+			boost_attr->target_time_up_bound_by_pid = val;
+		else if (val == BY_PID_DEFAULT_VAL && action == 'u')
+			boost_attr->target_time_up_bound_by_pid = BY_PID_DEFAULT_VAL;
+	} else if (!strcmp(cmd, "target_time_low_bound")) {
+		if ((val <= 1000 && val >= 0) && action == 's')
+			boost_attr->target_time_low_bound_by_pid = val;
+		else if (val == BY_PID_DEFAULT_VAL && action == 'u')
+			boost_attr->target_time_low_bound_by_pid = BY_PID_DEFAULT_VAL;
  	}
 
 delete_pid:
@@ -9423,6 +9462,14 @@ FBT_SYSFS_READ(engine_cooler_enable, fbt_mlock, engine_cooler_enable);
 FBT_SYSFS_WRITE_VALUE(engine_cooler_enable, fbt_mlock, engine_cooler_enable, 0, 1);
 static KOBJ_ATTR_RW(engine_cooler_enable);
 
+FBT_SYSFS_READ(target_time_up_bound, fbt_mlock, target_time_up_bound);
+FBT_SYSFS_WRITE_VALUE(target_time_up_bound, fbt_mlock, target_time_up_bound, 0, 1000);
+static KOBJ_ATTR_RW(target_time_up_bound);
+
+FBT_SYSFS_READ(target_time_low_bound, fbt_mlock, target_time_low_bound);
+FBT_SYSFS_WRITE_VALUE(target_time_low_bound, fbt_mlock, target_time_low_bound, 0, 1000);
+static KOBJ_ATTR_RW(target_time_low_bound);
+
 void fbt_init_cpu_loading_info(void)
 {
 	int i = 0;
@@ -9534,6 +9581,8 @@ void __exit fbt_cpu_exit(void)
 	fpsgo_sysfs_remove_file(fbt_kobj, &kobj_attr_rl_l2q_enable);
 	fpsgo_sysfs_remove_file(fbt_kobj, &kobj_attr_rl_l2q_exp_us);
 	fpsgo_sysfs_remove_file(fbt_kobj, &kobj_attr_rl_l2q_exp_times);
+	fpsgo_sysfs_remove_file(fbt_kobj, &kobj_attr_target_time_up_bound);
+	fpsgo_sysfs_remove_file(fbt_kobj, &kobj_attr_target_time_low_bound);
 
 
 	fpsgo_sysfs_remove_dir(&fbt_kobj);
@@ -9693,6 +9742,9 @@ int __init fbt_cpu_init(void)
 
 	engine_cooler_enable = 0;
 
+	target_time_up_bound = 0;
+	target_time_low_bound = 0;
+
 	if (cluster_num <= 0)
 		FPSGO_LOGE("cpufreq policy not found");
 
@@ -9778,6 +9830,8 @@ int __init fbt_cpu_init(void)
 		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_rl_l2q_enable);
 		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_rl_l2q_exp_us);
 		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_rl_l2q_exp_times);
+		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_target_time_up_bound);
+		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_target_time_low_bound);
 #if FPSGO_MW
 		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_fbt_attr_by_pid);
 		fpsgo_sysfs_create_file(fbt_kobj, &kobj_attr_fbt_attr_by_tid);

@@ -423,7 +423,7 @@ static inline bool pd_process_timer_msg(
 	case PD_TIMER_HARD_RESET_SAFE0V:
 	case PD_TIMER_HARD_RESET_SAFE5V:
 #endif /* !CONFIG_USB_PD_RETRY_HRESET */
-		PE_INFO("SRC NoResp\n");
+		PE_DBG("SRC NoResp\n");
 		if (pd_port->request_v == TCPC_VBUS_SINK_5V) {
 			pd_report_typec_only_charger(pd_port);
 		} else {

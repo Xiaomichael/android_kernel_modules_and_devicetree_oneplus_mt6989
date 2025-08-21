@@ -28,6 +28,12 @@ AlphaH_24051    OV50D40          alphahmain       main cam
 AlphaH_24051    IMX471           alphahfront      front cam
 AlphaH_24051    GC02M1B          alphahmono       mono cam
 
+BaiKalM_24035    OV50D40         baikalmmain      main cam
+BaiKalM_24035    GC08A8          baikalmfront     front cam
+BaiKalM_24035    GC32E2          baikalmfront2    front2 cam
+BaikalM_24035    IMX471          baikalmfront3    front3 cam
+BaiKalM_24035    OV02B1B         baikalmmono      mono cam
+
 MilkywayC1_24021   IMX890           milkywayc1main      main cam
 MilkywayC1_24021   OV08D            milkywayc1wide      ultra wide cam
 MilkywayC1_24021   S5KJN5           milkywayc1tele      tele cam
@@ -55,6 +61,8 @@ Casiox_24706   SC202CS          casioxmono      mono cam
 
 Casioy_24626   IMX882           casioymain      main cam
 Casioy_24626   GC32E2           casioyfront     front cam
+Casioy_24626   OV50D40          casioyfront2    front2 cam
+Casioy_24626   OV08D            casioyuwide     ultra wide cam
 Casioy_24626   SC202CS          casioymono      mono cam
 
 CaymanA_24610   IMX882         caymanamain   main cam

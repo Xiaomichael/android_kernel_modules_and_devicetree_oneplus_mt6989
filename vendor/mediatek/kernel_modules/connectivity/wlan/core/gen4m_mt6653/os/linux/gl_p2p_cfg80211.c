@@ -3050,6 +3050,7 @@ int _mtk_p2p_cfg80211_mgmt_tx(struct wiphy *wiphy,
 	uint8_t ucRoleIdx = 0, ucBssIdx = 0;
 	int32_t i4Rslt = -EINVAL;
 	struct net_device *dev = NULL;
+	enum ENUM_P2P_CONNECT_STATE eCNNState;
 
 	do {
 		if ((wiphy == NULL) || (wdev == NULL) ||
@@ -3137,10 +3138,6 @@ int _mtk_p2p_cfg80211_mgmt_tx(struct wiphy *wiphy,
 			break;
 		}
 
-		prMsgTxReq->u8Cookie = *cookie;
-		prMsgTxReq->rMsgHdr.eMsgId = MID_MNY_P2P_MGMT_TX;
-		prMsgTxReq->ucBssIdx = ucBssIdx;
-
 		pucFrameBuf =
 			(uint8_t *)
 			((unsigned long) prMgmtFrame->prPacket
@@ -3157,6 +3154,19 @@ int _mtk_p2p_cfg80211_mgmt_tx(struct wiphy *wiphy,
 		*pu8GlCookie = *cookie;
 
 		prMgmtFrame->u2FrameLength = len;
+
+		eCNNState = p2pFuncTagMgmtFrame(prMsgTxReq->prMgmtMsduInfo,
+			*cookie);
+
+		prMsgTxReq->u8Cookie = *cookie;
+		prMsgTxReq->rMsgHdr.eMsgId = MID_MNY_P2P_MGMT_TX;
+
+		if (eCNNState == P2P_CNN_INVITATION_REQ) {
+			DBGLOG(P2P, INFO, "INVITATION_REQ change bssIdx\n");
+			prMsgTxReq->ucBssIdx =
+				prGlueInfo->prAdapter->ucP2PDevBssIdx;
+		} else
+			prMsgTxReq->ucBssIdx = ucBssIdx;
 
 #define TEMP_LOG_TEMPLATE "[%s] bssIdx: %d, band: %d, chan: %d, " \
 		"offchan: %d, wait: %d, len: %d, no_cck: %d, " \
@@ -3241,6 +3251,7 @@ int mtk_p2p_cfg80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	uint8_t ucRetry = 0;
 	struct MSG_CANCEL_TX_WAIT_REQUEST *prMsgCancelTxWait =
 			(struct MSG_CANCEL_TX_WAIT_REQUEST *) NULL;
+	struct P2P_PENDING_MGMT_INFO *prPendingMgmtInfo = NULL;
 
 	do {
 		ASSERT(wiphy);
@@ -3261,6 +3272,14 @@ int mtk_p2p_cfg80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 				break;
 			}
 		}
+
+		if (p2pFuncGetBssIdxByCookie(prGlueInfo->prAdapter,
+					     ucRoleIdx,
+					     &prPendingMgmtInfo,
+					     cookie) &&
+		    prPendingMgmtInfo &&
+		    IS_BSS_INDEX_VALID(prPendingMgmtInfo->ucBssIdx))
+			ucBssIdx = prPendingMgmtInfo->ucBssIdx;
 
 		DBGLOG(P2P, INFO, "bssIdx: %d, cookie: 0x%llx\n",
 				ucBssIdx,

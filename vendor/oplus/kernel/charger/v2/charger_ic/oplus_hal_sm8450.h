@@ -617,6 +617,25 @@ enum OTG_BOOST_SOURCE {
 	OTG_BOOST_SOURCE_EXTERNAL,
 };
 
+enum charging_status {
+	CHARGING_TYPE_UNKNOW,
+	CHARGING_TYPE_VOOC_SVOOC,
+	CHARGING_TYPE_OPLUS_UFCS,
+	CHARGING_TYPE_OPLUS_PPS,
+	CHARGING_TYPE_THIRD_UFCS,
+	CHARGING_TYPE_THIRD_PPS,
+	CHARGING_TYPE_FFC,
+	CHARGING_TYPE_MAX,
+};
+
+enum qbg_full_temp_region {
+	QBG_TEMP_COLD,
+	QBG_TEMP_COOL,
+	QBG_TEMP_NORMAL,
+	QBG_TEMP_WARM,
+	QBG_TEMP_MAX,
+};
+
 enum OEM_MISC_CTL_CMD {
 	OEM_MISC_CTL_CMD_LCM_EN = 0,
 	OEM_MISC_CTL_CMD_LCM_25K = 2,
@@ -781,6 +800,9 @@ struct battery_chg_dev {
 	struct oplus_chg_ic_dev		*ufcs_ic;
 	struct oplus_impedance_node	*input_imp_node;
 	struct oplus_mms		*common_topic;
+	struct oplus_mms		*pps_topic;
+	struct oplus_mms		*ufcs_topic;
+	struct oplus_mms		*err_topic;
 	struct votable			*chg_disable_votable;
 #endif
 	struct class			battery_class;
@@ -804,6 +826,7 @@ struct battery_chg_dev {
 	struct work_struct		usb_type_work;
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	int ccdetect_irq;
+	struct delayed_work	publish_close_cp_item_work;
 	struct delayed_work	suspend_check_work;
 	struct delayed_work	adsp_voocphy_status_work;
 	struct delayed_work	otg_init_work;
@@ -899,6 +922,9 @@ struct battery_chg_dev {
 	int read_by_reg;
 	bool ufcs_run_check_support;
 #endif
+	int batt_full_para[CHARGING_TYPE_MAX][QBG_TEMP_MAX];
+	int batt_full_temp[QBG_TEMP_MAX];
+	bool batt_full_method_new;
 };
 
 /**********************************************************************

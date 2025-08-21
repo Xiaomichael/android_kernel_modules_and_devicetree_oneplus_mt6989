@@ -188,6 +188,10 @@ int oplus_gauge_get_sili_alg_lifetime_info(struct oplus_mms *mms, u8 *info, int 
 int oplus_gauge_get_battinfo_manu_date(struct oplus_mms *topic, char *buff, int size_buffer);
 int oplus_gauge_get_battinfo_first_usage_date(struct oplus_mms *topic, char *buff, int size_buffer);
 int oplus_gauge_set_battinfo_first_usage_date(struct oplus_mms *topic, const char *buff);
+int oplus_set_reset_gauge_parms(struct oplus_mms *topic, const int *buff);
+int oplus_gauge_get_batt_sn(struct oplus_mms *topic, char *buff, int size_buffer);
+int oplus_gauge_get_historic_soh_date(struct oplus_mms *topic, int *buff, int size_buffer);
+int oplus_set_histrioc_soh_date(struct oplus_mms *topic, const int *buff);
 int oplus_gauge_get_ui_cc(struct oplus_mms *topic);
 int oplus_gauge_set_ui_cc(struct oplus_mms *topic, int count);
 int oplus_gauge_get_ui_soh(struct oplus_mms *topic);

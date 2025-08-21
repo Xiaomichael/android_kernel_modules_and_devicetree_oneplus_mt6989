@@ -83,6 +83,7 @@ extern struct oplus_demura_setting_table demura_setting;
 /* extern functions */
 extern void lcdinfo_notify(unsigned long val, void *v);
 extern int mtk_ddic_vdo_aod_ctrl(unsigned char aod_en, bool need_lock);
+extern bool oplus_apollo_unsupported(void);
 
 /* -------------------- oplus_ofp_params -------------------- */
 static struct oplus_ofp_params *oplus_ofp_get_params(void)
@@ -166,6 +167,10 @@ int oplus_ofp_init(void *device)
 	/* indicates whether fp type compatible mode is set or not */
 	p_oplus_ofp_params->fp_type_compatible_mode = of_property_read_bool(dev->of_node, "oplus,ofp-fp-type-compatible-mode");
 	OFP_INFO("fp_type_compatible_mode:%d\n", p_oplus_ofp_params->fp_type_compatible_mode);
+
+	/* indicates whether lhbm on brightness needs to be read and updated or not */
+	p_oplus_ofp_params->need_to_update_lhbm_brightness = of_property_read_bool(dev->of_node, "oplus,ofp-need-to-update-lhbm-brightness");
+	OFP_INFO("need_to_update_lhbm_brightness:%d\n", p_oplus_ofp_params->need_to_update_lhbm_brightness);
 
 	if (oplus_ofp_is_supported()) {
 		/* read by the framework for compatibility with different aod modes */
@@ -504,6 +509,7 @@ int oplus_ofp_get_hbm_state(void)
 
 	return p_oplus_ofp_params->hbm_state;
 }
+EXPORT_SYMBOL(oplus_ofp_get_hbm_state);
 
 int oplus_ofp_set_hbm_state(bool hbm_state)
 {
@@ -824,9 +830,11 @@ int oplus_ofp_lhbm_backlight_update(void *drm_crtc)
 		return -EINVAL;
 	}
 
-	if (!p_oplus_ofp_params->need_to_update_lhbm_pressed_icon_gamma) {
-		OFP_DEBUG("need_to_update_lhbm_pressed_icon_gamma is not set, no need to update backlight after dimlayer_hbm on/off\n");
-		return 0;
+	if(!p_oplus_ofp_params->need_to_update_lhbm_brightness) {
+		if (!p_oplus_ofp_params->need_to_update_lhbm_pressed_icon_gamma) {
+			OFP_DEBUG("need_to_update_lhbm_pressed_icon_gamma is not set, no need to update backlight after dimlayer_hbm on/off\n");
+			return 0;
+		}
 	}
 
 	if (drm_crtc_index(crtc)) {
@@ -1333,6 +1341,8 @@ static int oplus_ofp_set_panel_hbm(struct drm_crtc *crtc, bool hbm_en)
 int oplus_ofp_hbm_handle(void *drm_crtc, void *mtk_crtc_state, void *cmdq_pkt)
 {
 	int hbm_en = 0;
+	unsigned int refresh_rate = 0;
+	struct mtk_drm_crtc *mtk_crtc = NULL;
 	struct drm_crtc *crtc = drm_crtc;
 	struct mtk_crtc_state *state = mtk_crtc_state;
 	struct cmdq_pkt *cmdq_handle = cmdq_pkt;
@@ -1348,6 +1358,13 @@ int oplus_ofp_hbm_handle(void *drm_crtc, void *mtk_crtc_state, void *cmdq_pkt)
 		return -EFAULT;
 	}
 
+	mtk_crtc = to_mtk_crtc(crtc);
+	if (!mtk_crtc) {
+		OFP_ERR("Invalid params\n");
+		return -EFAULT;
+	}
+	refresh_rate = drm_mode_vrefresh(&mtk_crtc->base.state->adjusted_mode);
+
 	oplus_disp_trace_begin("oplus_ofp_hbm_handle");
 
 	hbm_en = state->prop_val[CRTC_PROP_HBM_ENABLE] & OPLUS_OFP_PROPERTY_DIMLAYER_AND_PRESSICON;
@@ -1357,7 +1374,16 @@ int oplus_ofp_hbm_handle(void *drm_crtc, void *mtk_crtc_state, void *cmdq_pkt)
 		if ((!state->prop_val[CRTC_PROP_DOZE_ACTIVE] && hbm_en > 0 && oplus_display_brightness != 0)
 			|| (state->prop_val[CRTC_PROP_DOZE_ACTIVE] && hbm_en > 1 && oplus_display_brightness != 0)) {
 			OFP_DEBUG("set hbm on\n");
-			oplus_ofp_set_panel_hbm(crtc, true);
+			if (oplus_ofp_video_mode_30hz_aod_is_enabled()) {
+				if (refresh_rate == 120) {
+					oplus_ofp_set_panel_hbm(crtc, true);
+				} else {
+					OFP_INFO("refresh not 120fps\n");
+				}
+
+			} else {
+				oplus_ofp_set_panel_hbm(crtc, true);
+			}
 
 			if (!oplus_ofp_local_hbm_is_enabled()) {
 				/*bypass pq when enter hbm */
@@ -1764,7 +1790,7 @@ int oplus_ofp_aod_off_backlight_recovery(void *drm_crtc, void *mtk_crtc_state, v
 	struct mtk_panel_ext *ext = NULL;
 	struct oplus_ofp_params *p_oplus_ofp_params = oplus_ofp_get_params();
 
-	if(oplus_ofp_video_mode_30hz_aod_is_enabled())
+	if(oplus_ofp_video_mode_30hz_aod_is_enabled() && !oplus_apollo_unsupported())
 		return 0;
 
 	mtk_crtc = to_mtk_crtc(crtc);
@@ -1804,7 +1830,7 @@ int oplus_ofp_aod_off_backlight_recovery(void *drm_crtc, void *mtk_crtc_state, v
 			ofp_aod_off_swtich_pulse = true;
 			comp->funcs->io_cmd(comp, cmdq_handle, DSI_SET_HPWM_PULSE_BL, &oplus_display_brightness);
 			oplus_disp_trace_end("mtk_drm_send_aod_off_bl_recovery");
-		} else if (oplus_display_brightness > 1) {
+		} else {
 			oplus_disp_trace_begin("mtk_drm_send_aod_off_bl_recovery");
 			comp->funcs->io_cmd(comp, cmdq_handle, DSI_SET_BL, &oplus_display_brightness);
 			oplus_disp_trace_end("mtk_drm_send_aod_off_bl_recovery");
@@ -2195,7 +2221,6 @@ void oplus_ofp_aod_off_set_work_handler(struct work_struct *work_item)
 	if(oplus_ofp_video_mode_30hz_aod_is_enabled()) {
 		oplus_ofp_aod_unlocking_update();
 		ret = mtk_ddic_vdo_aod_ctrl(0, true);
-		oplus_ofp_set_aod_state(false);
 		p_oplus_ofp_params->aod_off_cmd_timestamp = ktime_get();
 		OFP_DEBUG("aod_off_cmd_timestamp:%lld\n", ktime_to_ms(p_oplus_ofp_params->aod_off_cmd_timestamp));
 	} else
@@ -3560,7 +3585,9 @@ int oplus_panel_ext_init(struct drm_crtc *crtc)
 	if((!strcmp("ac222_p_7_a0014_dsi_cmd_panel", panel_name)
 		|| !strcmp("ac230_p_7_a0014_dsi_cmd_t1", panel_name)
 		|| !strcmp("ac264_p_7_a0014_dsi_cmd", panel_name)
-		|| !strcmp("panel_ae016_p_7_a0014_dsi_cmd", panel_name))
+		|| !strcmp("panel_ae016_p_7_a0014_dsi_cmd", panel_name)
+		|| !strcmp("aa600_p_7_a0025_vdo_panel", panel_name)
+		|| !strcmp("aa597_p_7_a0025_dsi_vdo", panel_name))
 		&& !g_gamma_regs_read_done) {
 		rc |= oplus_panel_ac178_gamma_compensation(dsi);
 	}

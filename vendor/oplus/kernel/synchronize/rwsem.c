@@ -74,24 +74,20 @@ static void rwsem_set_inherit_ux(struct rw_semaphore *sem)
 
 	/* set writer as ux task */
 	if ((is_ux || is_rt) && !test_inherit_ux(owner, INHERIT_UX_RWSEM)) {
-		int type = get_ux_state_type(owner);
+		/*
+		 * Non-ux tasks' ux type is 0, but we need a sched assist type.
+		 * SA_TYPE_LIGHT is a good choice.
+		 */
+		if (is_ux)
+			inherit_type = oplus_get_ux_state(current);
+		else
+			inherit_type = SA_TYPE_LIGHT;
 
-		if ((type == UX_STATE_NONE) || (type == UX_STATE_INHERIT)) {
-			/*
-			 * Non-ux tasks' ux type is 0, but we need a sched assist type.
-			 * SA_TYPE_LIGHT is a good choice.
-			 */
-			if (is_ux)
-				inherit_type = oplus_get_ux_state(current);
-			else
-				inherit_type = SA_TYPE_LIGHT;
+		cond_trace_printk(locking_opt_debug(LK_DEBUG_FTRACE),
+			"task: %s pid: %d rt:%d set owner to ux, type = %d\n",
+			current->comm, current->pid, rt_prio(current->prio), inherit_type);
 
-			cond_trace_printk(locking_opt_debug(LK_DEBUG_FTRACE),
-				"task: %s pid: %d rt:%d set owner to ux, type = %d\n",
-				current->comm, current->pid, rt_prio(current->prio), inherit_type);
-
-			set_inherit_ux(owner, INHERIT_UX_RWSEM, oplus_get_ux_depth(current), inherit_type);
-		}
+		set_inherit_ux(owner, INHERIT_UX_RWSEM, oplus_get_ux_depth(current), inherit_type);
 	}
 }
 
@@ -290,7 +286,7 @@ static void rwsem_update_ux_cnt_when_add(struct rw_semaphore *sem)
 		return;
 
 	/* Record the ux flag when task is added to wait list */
-	ots->lkinfo.is_block_ux = (ots->ux_state & 0xf) || (current->prio < MAX_RT_PRIO);
+	ots->lkinfo.is_block_ux = (ots->ux_state & SCHED_ASSIST_UX_MASK) || (current->prio < MAX_RT_PRIO);
 	if (ots->lkinfo.is_block_ux)
 		atomic_long_inc(&osem->count);
 }
@@ -382,8 +378,8 @@ static void android_vh_rwsem_opt_spin_start_handler(void *unused,
 		return;
 
 	delta = sched_clock() - ots->lkinfo.opt_spin_start_time;
-	if (((ots->ux_state & 0xf) && delta > rwsem_ux_opt_spin_time_threshold) ||
-	    (!(ots->ux_state & 0xf) && delta > rwsem_opt_spin_time_threshold)) {
+	if (((ots->ux_state & SCHED_ASSIST_UX_MASK) && delta > rwsem_ux_opt_spin_time_threshold) ||
+	    (!(ots->ux_state & SCHED_ASSIST_UX_MASK) && delta > rwsem_opt_spin_time_threshold)) {
 		rwsem_opt_spin_timeout_exit_cnt++;
 		*time_out = true;
 	}
@@ -426,7 +422,7 @@ static void android_vh_rwsem_can_spin_on_owner_handler(void *unused,
 		return;
 
 	/* writer | ux | rt just go */
-	if (wlock || (ots->ux_state & 0xf) || (current->prio < MAX_RT_PRIO))
+	if (wlock || (ots->ux_state & SCHED_ASSIST_UX_MASK) || (current->prio < MAX_RT_PRIO))
 		return;
 
 	block_ux_cnt = atomic_long_read(&osem->count);

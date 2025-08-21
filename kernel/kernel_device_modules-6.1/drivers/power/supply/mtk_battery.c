@@ -4818,7 +4818,7 @@ static int meter_fg_30_get_battery_soh(void)
 		bm_err("%s oplus_gm is NULL\n", __func__);
 		return -EINVAL;
 	}
-	return oplus_gm->soh/100;
+	return oplus_gm->aging_factor / 100;
 }
 
 static int meter_fg_30_get_prev_batt_remaining_capacity(void)
@@ -4875,6 +4875,27 @@ static bool meter_set_gauge_power_sel(int sel)
 		chgsel = (enum charge_sel)sel;
 	}
 	return set_charge_power_sel(chgsel);
+}
+
+#define AGING_LOW_LIMIT  75
+#define AGING_HIGH_LIMIT 100
+extern void exec_BAT_EC(int cmd, int param);
+static bool meter_set_gauge_aging(int sel)
+{
+	if (sel >= AGING_LOW_LIMIT && sel <= AGING_HIGH_LIMIT)
+		exec_BAT_EC(795, sel);
+	return true;
+}
+
+static bool meter_set_gauge_cycles(int sel)
+{
+	struct mtk_battery *gm;
+	gm = get_mtk_battery();
+
+	gm->is_reset_battery_cycle = true;
+	wakeup_fg_algo(gm, FG_INTR_BAT_CYCLE);
+	bm_err("%s %d is %d\n", __func__, sel, gm->is_reset_battery_cycle);
+	return true;
 }
 
 static int meter_fg_30_get_batt_qmax(int *qmax1, int *qmax2)
@@ -5017,6 +5038,8 @@ static struct oplus_gauge_operations oplus_battery_gauge = {
 	.update_battery_dod0				= meter_fg_30_modify_dod0,
 	.update_soc_smooth_parameter		= meter_fg_30_update_soc_smooth_parameter,
 	.set_gauge_power_sel                = meter_set_gauge_power_sel,
+	.set_gauge_aging			= meter_set_gauge_aging,
+	.set_gauge_cycles			= meter_set_gauge_cycles,
 	.get_batt_qmax				= meter_fg_30_get_batt_qmax,
 	.get_gauge_car_c			= meter_fg_30_get_gauge_car_c,
 };

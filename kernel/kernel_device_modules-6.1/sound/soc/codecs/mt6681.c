@@ -72,6 +72,92 @@ static void keylock_set(struct mt6681_priv *priv);
 static void keylock_reset(struct mt6681_priv *priv);
 static void mt6681_clh_lut_init(struct mt6681_priv *priv);
 static void mt6681_adc_init(struct mt6681_priv *priv);
+static int mt6681_sw_normal_mode(struct mt6681_priv *priv, bool enable)
+{
+	int ret = 0;
+	unsigned int data = 0, data1 = 0, data2 = 0,  data3 = 0, data4 = 0, data5 = 0;
+
+	ret = regmap_read(priv->regmap, MT6681_MTC_STS0, &data1);
+	if (ret < 0)
+		dev_info(priv->dev, "%s() Cannot read MT6681_MTC_STS0\n", __func__);
+	else
+		dev_info(priv->dev, "%s() MT6681_MTC_STS0 = %d\n", __func__, data1);
+
+	ret = regmap_read(priv->regmap, MT6681_MTC_STS2, &data2);
+	if (ret < 0)
+		dev_info(priv->dev, "%s() Cannot read MT6681_MTC_STS2\n", __func__);
+	else
+		dev_info(priv->dev, "%s() MT6681_MTC_STS2 = %d\n", __func__, data2);
+
+	ret = regmap_read(priv->regmap, MT6681_VCC_STS0, &data3);
+	if (ret < 0)
+		dev_info(priv->dev, "%s() Cannot read MT6681_VCC_STS0\n", __func__);
+	else
+		dev_info(priv->dev, "%s() MT6681_VCC_STS0 = %d\n", __func__, data3);
+
+	ret = regmap_read(priv->regmap, MT6681_ACDIF_MON0, &data);
+	if (ret < 0)
+		dev_info(priv->dev, "%s() Cannot read MT6681_ACDIF_MON0\n", __func__);
+	else
+		dev_info(priv->dev, "%s() MT6681_ACDIF_MON0 = %d\n", __func__, data);
+	ret = regmap_read(priv->regmap, MT6681_ACDIF_MON1, &data);
+	if (ret < 0)
+		dev_info(priv->dev, "%s() Cannot read MT6681_ACDIF_MON1\n", __func__);
+	else
+		dev_info(priv->dev, "%s() MT6681_ACDIF_MON1 = %d\n", __func__, data);
+
+	if (enable){
+		/* check audio status */
+		if ((data1 != 0x7f) || (data2 != 0x1) ||((data3 & 0x2) != 0x2)) {
+			dev_info(priv->dev, "%s() [Resume] MT6681_MTC_STS0/MT6681_MTC_STS2/MT6681_VCC_STS0 = 0x%x/0x%x/0x%x, status error, need retry & resume\n",
+				 __func__, data1, data2, data3);
+			 /* MT6681_TOP_CON2
+			  * [1] 0: sw mode 1: hw mode
+			  * [0] 0: suspend 1: normal
+			  */
+			/* step 1 */
+			regmap_write(priv->regmap, MT6681_TOP_CON2, 0x3);
+			/* step2 */
+			regmap_write(priv->regmap, MT6681_TOP_CON2, 0x1);
+			udelay(200);
+			/* step3 */
+			regmap_write(priv->regmap, MT6681_TOP_CON2, 0x0);
+			udelay(200);
+			/* step4 */
+			regmap_write(priv->regmap, MT6681_TOP_CON2, 0x1);
+			//resume need delay 2ms
+			udelay(2000);
+
+			/* step5 */
+			ret = regmap_read(priv->regmap, MT6681_MTC_STS0, &data1);
+			ret = regmap_read(priv->regmap, MT6681_MTC_STS2, &data2);
+			ret = regmap_read(priv->regmap, MT6681_VCC_STS0, &data3);
+			ret = regmap_read(priv->regmap, MT6681_TOP_CON2, &data4);
+			ret = regmap_read(priv->regmap, MT6681_MTC_STS1, &data5);
+			dev_info(priv->dev, "%s() [Check] MT6681_MTC_STS0/MT6681_MTC_STS2/MT6681_VCC_STS0/MT6681_TOP_CON2/MT6681_MTC_STS1 = 0x%x/0x%x/0x%x/0x%x/0x%x\n",
+				 __func__, data1, data2, data3, data4, data5);
+
+			if ((data1 != 0x7f) || (data2 != 0x1) ||((data3 & 0x2) != 0x2)) {
+				/* reset counter for mode change*/
+				regmap_write(priv->regmap, MT6681_MTC_CTL1, 0x8);
+				udelay(750);
+			}
+		}
+	} else {
+		ret = regmap_read(priv->regmap, MT6681_TOP_CON2, &data);
+		if (ret < 0)
+			dev_info(priv->dev, "%s() Cannot read MT6681_TOP_CON2\n", __func__);
+		else
+			dev_info(priv->dev, "%s() MT6681_TOP_CON2 = %d\n", __func__, data);
+		if (data == 0x1) {
+			/* restore counter */
+			regmap_write(priv->regmap, MT6681_MTC_CTL1, 0x0);
+			/* change to hw mode */
+			regmap_write(priv->regmap, MT6681_TOP_CON2, 0x3);
+		}
+	}
+	return 0;
+}
 
 static int mt6681_key_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
@@ -1735,6 +1821,96 @@ static int vow_cic_type_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 #endif
+static int mt6681_snd_soc_read_signed(struct snd_soc_component *component,
+	unsigned int reg, unsigned int mask, unsigned int shift,
+	unsigned int sign_bit, int *signed_val)
+{
+	int ret;
+	unsigned int val;
+
+	val = snd_soc_component_read(component, reg);
+	val = (val >> shift) & mask;
+
+	if (!sign_bit) {
+		*signed_val = val;
+		return 0;
+	}
+
+	/* non-negative number */
+	if (!(val & BIT(sign_bit))) {
+		*signed_val = val;
+		return 0;
+	}
+
+	ret = val;
+
+	/*
+	 * The register most probably does not contain a full-sized int.
+	 * Instead we have an arbitrary number of bits in a signed
+	 * representation which has to be translated into a full-sized int.
+	 * This is done by filling up all bits above the sign-bit.
+	 */
+	ret |= ~((int)(BIT(sign_bit) - 1));
+
+	*signed_val = ret;
+
+	return 0;
+}
+
+int mt6681_snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct mt6681_priv *priv = snd_soc_component_get_drvdata(component);
+	struct i2c_adapter *adap = priv->i2c_client->adapter;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
+	unsigned int shift = mc->shift;
+	unsigned int rshift = mc->rshift;
+	int max = mc->max;
+	int min = mc->min;
+	int sign_bit = mc->sign_bit;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int invert = mc->invert;
+	int val;
+	int ret;
+
+	if (sign_bit)
+		mask = BIT(sign_bit + 1) - 1;
+
+	scp_wake_request(adap);
+
+	ret = mt6681_snd_soc_read_signed(component, reg, mask, shift, sign_bit, &val);
+	if (ret)
+		return ret;
+
+	ucontrol->value.integer.value[0] = val - min;
+	if (invert)
+		ucontrol->value.integer.value[0] =
+			max - ucontrol->value.integer.value[0];
+
+	if (snd_soc_volsw_is_stereo(mc)) {
+		if (reg == reg2)
+			ret = mt6681_snd_soc_read_signed(component, reg, mask, rshift,
+				sign_bit, &val);
+		else
+			ret = mt6681_snd_soc_read_signed(component, reg2, mask, shift,
+				sign_bit, &val);
+		if (ret)
+			return ret;
+
+		ucontrol->value.integer.value[1] = val - min;
+		if (invert)
+			ucontrol->value.integer.value[1] =
+				max - ucontrol->value.integer.value[1];
+	}
+
+	scp_wake_release(adap);
+
+	return 0;
+}
 
 static int mt6681_snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
@@ -2076,61 +2252,61 @@ static const struct snd_kcontrol_new mt6681_snd_controls[] = {
 	/* ul pga gain */
 #ifdef VIVO_CUS
 	SOC_SINGLE_EXT_TLV("PGA1 Volume", MT6681_AUDENC_2_2_PMU_CON0,
-			   RG_AUDPREAMPLGAIN_1P5_SFT, 0xff, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMPLGAIN_1P5_SFT, 0xff, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA2 Volume", MT6681_AUDENC_2_2_PMU_CON1,
-			   RG_AUDPREAMPRGAIN_1P5_SFT, 0xff, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMPRGAIN_1P5_SFT, 0xff, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA3 Volume", MT6681_AUDENC_2_2_PMU_CON2,
-			   RG_AUDPREAMP3GAIN_1P5_SFT, 0xff, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP3GAIN_1P5_SFT, 0xff, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA4 Volume", MT6681_AUDENC_2_2_PMU_CON3,
-			   RG_AUDPREAMP4GAIN_1P5_SFT, 0xff, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP4GAIN_1P5_SFT, 0xff, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA5 Volume", MT6681_AUDENC_2_2_PMU_CON4,
-			   RG_AUDPREAMP5GAIN_1P5_SFT, 0xff, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP5GAIN_1P5_SFT, 0xff, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA6 Volume", MT6681_AUDENC_2_2_PMU_CON5,
-			   RG_AUDPREAMP6GAIN_1P5_SFT, 0xff, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP6GAIN_1P5_SFT, 0xff, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 #else
 	SOC_SINGLE_EXT_TLV("PGA1 Volume", MT6681_AUDENC_2_2_PMU_CON0,
-			   RG_AUDPREAMPLGAIN_1P5_SFT, 0xc0, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMPLGAIN_1P5_SFT, 0xc0, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA2 Volume", MT6681_AUDENC_2_2_PMU_CON1,
-			   RG_AUDPREAMPRGAIN_1P5_SFT, 0xc0, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMPRGAIN_1P5_SFT, 0xc0, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA3 Volume", MT6681_AUDENC_2_2_PMU_CON2,
-			   RG_AUDPREAMP3GAIN_1P5_SFT, 0xc0, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP3GAIN_1P5_SFT, 0xc0, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA4 Volume", MT6681_AUDENC_2_2_PMU_CON3,
-			   RG_AUDPREAMP4GAIN_1P5_SFT, 0xc0, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP4GAIN_1P5_SFT, 0xc0, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA5 Volume", MT6681_AUDENC_2_2_PMU_CON4,
-			   RG_AUDPREAMP5GAIN_1P5_SFT, 0xc0, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP5GAIN_1P5_SFT, 0xc0, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 	SOC_SINGLE_EXT_TLV("PGA6 Volume", MT6681_AUDENC_2_2_PMU_CON5,
-			   RG_AUDPREAMP6GAIN_1P5_SFT, 0xc0, 0, snd_soc_get_volsw,
+			   RG_AUDPREAMP6GAIN_1P5_SFT, 0xc0, 0, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_tlv),
 #endif
 	/* ul pga neg gain */
 	SOC_SINGLE_EXT_TLV("NEG_PGA1 Volume", MT6681_AUDENC_PMU_CON10,
-			   RG_AUDPREAMPLNEGGAIN_SFT, 0x3, 1, snd_soc_get_volsw,
+			   RG_AUDPREAMPLNEGGAIN_SFT, 0x3, 1, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_neg_tlv),
 	SOC_SINGLE_EXT_TLV("NEG_PGA2 Volume", MT6681_AUDENC_PMU_CON10,
-			   RG_AUDPREAMPRNEGGAIN_SFT, 0x3, 1, snd_soc_get_volsw,
+			   RG_AUDPREAMPRNEGGAIN_SFT, 0x3, 1, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_neg_tlv),
 	SOC_SINGLE_EXT_TLV("NEG_PGA3 Volume", MT6681_AUDENC_PMU_CON10,
-			   RG_AUDPREAMP3NEGGAIN_SFT, 0x3, 1, snd_soc_get_volsw,
+			   RG_AUDPREAMP3NEGGAIN_SFT, 0x3, 1, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_neg_tlv),
 	SOC_SINGLE_EXT_TLV("NEG_PGA4 Volume", MT6681_AUDENC_PMU_CON10,
-			   RG_AUDPREAMP4NEGGAIN_SFT, 0x3, 1, snd_soc_get_volsw,
+			   RG_AUDPREAMP4NEGGAIN_SFT, 0x3, 1, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_neg_tlv),
 	SOC_SINGLE_EXT_TLV("NEG_PGA5 Volume", MT6681_AUDENC_2_PMU_CON8,
-			   RG_AUDPREAMP5NEGGAIN_SFT, 0x3, 1, snd_soc_get_volsw,
+			   RG_AUDPREAMP5NEGGAIN_SFT, 0x3, 1, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_neg_tlv),
 	SOC_SINGLE_EXT_TLV("NEG_PGA6 Volume", MT6681_AUDENC_2_PMU_CON8,
-			   RG_AUDPREAMP6NEGGAIN_SFT, 0x3, 1, snd_soc_get_volsw,
+			   RG_AUDPREAMP6NEGGAIN_SFT, 0x3, 1, mt6681_snd_soc_get_volsw,
 			   mt6681_put_volsw, capture_neg_tlv),
 
 	/* debug */
@@ -2272,6 +2448,62 @@ static const struct snd_kcontrol_new aif3_out_mux_control =
 	SOC_DAPM_ENUM("AIF Out Select", aif3_out_mux_map_enum);
 
 /* UL SRC MUX */
+/* Amic/dmic control */
+static void set_mic_by_name(struct mt6681_priv *priv, const char *name, unsigned int mux)
+{
+	if (strncmp(name, "UL_SRC_MUX", 10) == 0)
+		priv->mux_select[MUX_UL_SRC] = mux;
+	else if (strncmp(name, "UL2_SRC_MUX", 10) == 0)
+		priv->mux_select[MUX_UL2_SRC] = mux;
+	else if (strncmp(name, "UL3_SRC_MUX", 10) == 0)
+		priv->mux_select[MUX_UL3_SRC] = mux;
+	else
+		return;
+}
+static int get_mic_by_name(struct mt6681_priv *priv, const char *name)
+{
+	if (strncmp(name, "UL_SRC_MUX", 10) == 0)
+		return priv->mux_select[MUX_UL_SRC];
+	else if (strncmp(name, "UL2_SRC_MUX", 10) == 0)
+		return priv->mux_select[MUX_UL2_SRC];
+	else if (strncmp(name, "UL3_SRC_MUX", 10) == 0)
+		return priv->mux_select[MUX_UL3_SRC];
+	else
+		return 0;
+}
+
+static int mic_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct mt6681_priv *priv = snd_soc_component_get_drvdata(component);
+	int val = 0;
+
+	val = get_mic_by_name(priv, w->name);
+	ucontrol->value.enumerated.item[0] = val;
+
+	dev_info(priv->dev, "%s(), w->name %s = mux %d\n", __func__, w->name, val);
+
+	return 0;
+}
+static int mic_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct mt6681_priv *priv = snd_soc_component_get_drvdata(component);
+
+	unsigned int mux = ucontrol->value.enumerated.item[0];
+
+	dev_info(priv->dev, "%s(), w->name %s = mux %d\n", __func__, w->name, mux);
+	set_mic_by_name(priv, w->name, mux);
+
+	/* update widget info */
+	snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+
+	return 0;
+}
 static const char *const ul_src_mux_map[] = {
 	"AMIC", "DMIC",
 };
@@ -2288,7 +2520,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(ul_src_mux_map_enum,
 
 
 static const struct snd_kcontrol_new ul_src_mux_control =
-	SOC_DAPM_ENUM("UL_SRC_MUX Select", ul_src_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("UL_SRC_MUX Select", ul_src_mux_map_enum,
+			  mic_mux_enum_get, mic_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(ul2_src_mux_map_enum,
 				  MT6681_AFE_ADDA6_UL_SRC_CON0_0,
@@ -2297,7 +2530,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(ul2_src_mux_map_enum,
 				  ul_src_mux_map_value);
 
 static const struct snd_kcontrol_new ul2_src_mux_control =
-	SOC_DAPM_ENUM("UL_SRC_MUX Select", ul2_src_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("UL_SRC_MUX Select", ul2_src_mux_map_enum,
+			  mic_mux_enum_get, mic_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(ul3_src_mux_map_enum,
 				  MT6681_AFE_ADDA7_UL_SRC_CON0_0,
@@ -2306,7 +2540,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(ul3_src_mux_map_enum,
 				  ul_src_mux_map_value);
 
 static const struct snd_kcontrol_new ul3_src_mux_control =
-	SOC_DAPM_ENUM("UL_SRC_MUX Select", ul3_src_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("UL_SRC_MUX Select", ul3_src_mux_map_enum,
+			  mic_mux_enum_get, mic_mux_enum_put);
 
 #if IS_ENABLED(CONFIG_MTK_VOW_SUPPORT)
 /* VOW UL SRC MUX */
@@ -2318,6 +2553,83 @@ static SOC_VALUE_ENUM_SINGLE_DECL(vow_ul_src_mux_map_enum,
 static const struct snd_kcontrol_new vow_ul_src_mux_control =
 	SOC_DAPM_ENUM("VOW_UL_SRC_MUX Select", vow_ul_src_mux_map_enum);
 #endif
+
+/* miso control */
+static void set_miso_by_name(struct mt6681_priv *priv, const char *name, unsigned int mux)
+{
+	if (strncmp(name, "MISO0_MUX", 9) == 0)
+		priv->mux_select[MUX_MISO_0] = mux;
+	else if (strncmp(name, "MISO1_MUX", 9) == 0)
+		priv->mux_select[MUX_MISO_1] = mux;
+	else if (strncmp(name, "MISO2_MUX", 9) == 0)
+		priv->mux_select[MUX_MISO_2] = mux;
+	else if (strncmp(name, "MISO3_MUX", 9) == 0)
+		priv->mux_select[MUX_MISO_3] = mux;
+	else if (strncmp(name, "MISO4_MUX", 9) == 0)
+		priv->mux_select[MUX_MISO_4] = mux;
+	else if (strncmp(name, "MISO5_MUX", 9) == 0)
+		priv->mux_select[MUX_MISO_5] = mux;
+	else
+		return;
+}
+static int get_miso_by_name(struct mt6681_priv *priv, const char *name)
+{
+	if (strncmp(name, "MISO0_MUX", 9) == 0)
+		return priv->mux_select[MUX_MISO_0];
+	else if (strncmp(name, "MISO1_MUX", 9) == 0)
+		return priv->mux_select[MUX_MISO_1];
+	else if (strncmp(name, "MISO2_MUX", 9) == 0)
+		return priv->mux_select[MUX_MISO_2];
+	else if (strncmp(name, "MISO3_MUX", 9) == 0)
+		return priv->mux_select[MUX_MISO_3];
+	else if (strncmp(name, "MISO4_MUX", 9) == 0)
+		return priv->mux_select[MUX_MISO_4];
+	else if (strncmp(name, "MISO5_MUX", 9) == 0)
+		return priv->mux_select[MUX_MISO_5];
+	else
+		return 0;
+}
+
+static int miso_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct mt6681_priv *priv = snd_soc_component_get_drvdata(component);
+	int val, reg_val = 0;
+
+	val = get_miso_by_name(priv, w->name);
+	ucontrol->value.enumerated.item[0] = val;
+
+	reg_val = snd_soc_dapm_get_enum_double(kcontrol, ucontrol);
+	if (reg_val != val)
+		dev_info(priv->dev, "%s(), warning %s no update!!!\n", __func__, w->name);
+	dev_info(priv->dev, "%s(), w->name %s = mux %d (reg_val = %d)\n", __func__, w->name, val, reg_val);
+
+
+	return 0;
+}
+static int miso_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
+	struct mt6681_priv *priv = snd_soc_component_get_drvdata(component);
+	unsigned int mux = ucontrol->value.enumerated.item[0];
+	unsigned int data = 0;
+
+	dev_info(priv->dev, "%s(), w->name %s = mux %d\n", __func__, w->name, mux);
+	set_miso_by_name(priv, w->name, mux);
+	/* update widget info */
+	snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+	regmap_read(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG_H, &data);
+	dev_info(priv->dev, "%s() MT6681_AFE_MTKAIF_MUX_CFG_H = 0x%x\n", __func__, data);
+	regmap_read(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG_M, &data);
+	dev_info(priv->dev, "%s() MT6681_AFE_MTKAIF_MUX_CFG_M = 0x%x\n", __func__, data);
+
+	return 1;
+}
+
 /* MISO MUX */
 static const char *const miso_mux_map[] = {
 	"UL1_CH1", "UL1_CH2", "UL2_CH1", "UL2_CH2", "UL3_CH1", "UL3_CH2",
@@ -2333,14 +2645,16 @@ static SOC_VALUE_ENUM_SINGLE_DECL(miso0_mux_map_enum, MT6681_AFE_MTKAIF_MUX_CFG,
 				  miso_mux_map, miso_mux_map_value);
 
 static const struct snd_kcontrol_new miso0_mux_control =
-	SOC_DAPM_ENUM("MISO_MUX Select", miso0_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("MISO_MUX Select", miso0_mux_map_enum,
+			  miso_mux_enum_get, miso_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(miso1_mux_map_enum, MT6681_AFE_MTKAIF_MUX_CFG,
 				  RG_ADDA_CH2_SEL_SFT, RG_ADDA_CH2_SEL_MASK,
 				  miso_mux_map, miso_mux_map_value);
 
 static const struct snd_kcontrol_new miso1_mux_control =
-	SOC_DAPM_ENUM("MISO_MUX Select", miso1_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("MISO_MUX Select", miso1_mux_map_enum,
+			  miso_mux_enum_get, miso_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(miso2_mux_map_enum,
 				  MT6681_AFE_MTKAIF_MUX_CFG_M,
@@ -2348,7 +2662,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(miso2_mux_map_enum,
 				  miso_mux_map, miso_mux_map_value);
 
 static const struct snd_kcontrol_new miso2_mux_control =
-	SOC_DAPM_ENUM("MISO_MUX Select", miso2_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("MISO_MUX Select", miso2_mux_map_enum,
+			  miso_mux_enum_get, miso_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(miso3_mux_map_enum,
 				  MT6681_AFE_MTKAIF_MUX_CFG_M,
@@ -2356,7 +2671,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(miso3_mux_map_enum,
 				  miso_mux_map, miso_mux_map_value);
 
 static const struct snd_kcontrol_new miso3_mux_control =
-	SOC_DAPM_ENUM("MIS0_MUX Select", miso3_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("MISO_MUX Select", miso3_mux_map_enum,
+			  miso_mux_enum_get, miso_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(miso4_mux_map_enum,
 				  MT6681_AFE_MTKAIF_MUX_CFG_H,
@@ -2364,7 +2680,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(miso4_mux_map_enum,
 				  miso_mux_map, miso_mux_map_value);
 
 static const struct snd_kcontrol_new miso4_mux_control =
-	SOC_DAPM_ENUM("MIS0_MUX Select", miso4_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("MISO_MUX Select", miso4_mux_map_enum,
+			  miso_mux_enum_get, miso_mux_enum_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(miso5_mux_map_enum,
 				  MT6681_AFE_MTKAIF_MUX_CFG_H,
@@ -2372,7 +2689,8 @@ static SOC_VALUE_ENUM_SINGLE_DECL(miso5_mux_map_enum,
 				  miso_mux_map, miso_mux_map_value);
 
 static const struct snd_kcontrol_new miso5_mux_control =
-	SOC_DAPM_ENUM("MIS0_MUX Select", miso5_mux_map_enum);
+	SOC_DAPM_ENUM_EXT("MISO_MUX Select", miso5_mux_map_enum,
+			  miso_mux_enum_get, miso_mux_enum_put);
 
 #if IS_ENABLED(CONFIG_MTK_VOW_SUPPORT)
 /* VOW PBUF MUX */
@@ -6574,8 +6892,10 @@ static int mt_key_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		keylock_reset(priv);
+		mt6681_sw_normal_mode(priv, true);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		mt6681_sw_normal_mode(priv, false);
 		keylock_set(priv);
 		break;
 	default:
@@ -7373,6 +7693,35 @@ static int mt_adc_init_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		regmap_update_bits(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG,
+				   RG_ADDA_CH1_SEL_MASK_SFT,
+				   priv->mux_select[MUX_MISO_0] << RG_ADDA_CH1_SEL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG,
+				   RG_ADDA_CH2_SEL_MASK_SFT,
+				   priv->mux_select[MUX_MISO_1] << RG_ADDA_CH2_SEL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG_M,
+				   RG_ADDA6_CH1_SEL_MASK_SFT,
+				   priv->mux_select[MUX_MISO_2] << RG_ADDA6_CH1_SEL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG_M,
+				   RG_ADDA6_CH2_SEL_MASK_SFT,
+				   priv->mux_select[MUX_MISO_3] << RG_ADDA6_CH2_SEL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG_H,
+				   RG_ADDA7_CH1_SEL_MASK_SFT,
+				   priv->mux_select[MUX_MISO_4] << RG_ADDA7_CH1_SEL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_MTKAIF_MUX_CFG_H,
+				   RG_ADDA7_CH2_SEL_MASK_SFT,
+				   priv->mux_select[MUX_MISO_5] << RG_ADDA7_CH2_SEL_SFT);
+
+		regmap_update_bits(priv->regmap, MT6681_AFE_ADDA_UL_SRC_CON0_0,
+				   ADDA_UL_SDM_3_LEVEL_CTL_MASK_SFT,
+				   priv->mux_select[MUX_UL_SRC] << ADDA_UL_SDM_3_LEVEL_CTL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_ADDA6_UL_SRC_CON0_0,
+				   ADDA6_UL_SDM_3_LEVEL_CTL_MASK_SFT,
+				   priv->mux_select[MUX_UL2_SRC] << ADDA6_UL_SDM_3_LEVEL_CTL_SFT);
+		regmap_update_bits(priv->regmap, MT6681_AFE_ADDA7_UL_SRC_CON0_0,
+				   ADDA7_UL_SDM_3_LEVEL_CTL_MASK_SFT,
+				   priv->mux_select[MUX_UL3_SRC] << ADDA7_UL_SDM_3_LEVEL_CTL_SFT);
+
 		mt6681_adc_init(priv);
 		break;
 	default:
@@ -17646,7 +17995,7 @@ static void keylock_set(struct mt6681_priv *priv)
 {
 
 	regmap_write(priv->regmap, MT6681_TOP_CON, 0x02);
-	regmap_write(priv->regmap, MT6681_TOP_CON2, 0x1F);
+	//regmap_write(priv->regmap, MT6681_TOP_CON2, 0x1F);
 	regmap_write(priv->regmap, MT6681_TEST_CON0, 0x1F);
 	regmap_write(priv->regmap, MT6681_TOP_CKPDN_CON0, 0x5B);
 	regmap_write(priv->regmap, MT6681_DA_INTF_STTING3, 0x0C);
@@ -17655,7 +18004,7 @@ static void keylock_set(struct mt6681_priv *priv)
 	regmap_write(priv->regmap, MT6681_PLT_CON1, 0x0C);
 	regmap_write(priv->regmap, MT6681_HK_TOP_CLK_CON0, 0x15);
 	regmap_write(priv->regmap, MT6681_AUXADC_CON0, 0x00);
-	regmap_write(priv->regmap, MT6681_AUXADC_TRIM_SEL2, 0x40);
+	regmap_update_bits(priv->regmap, MT6681_AUXADC_TRIM_SEL2, AUXADC_TRIM_CH13_SEL_MASK_SFT, 0x1 << AUXADC_TRIM_CH13_SEL_SFT);
 	regmap_write(priv->regmap, MT6681_TOP_TOP_CKHWEN_CON0, 0x0F);
 	regmap_write(priv->regmap, MT6681_LDO_TOP_CLK_DCM_CON0, 0x01);
 	regmap_write(priv->regmap, MT6681_LDO_TOP_VR_CLK_CON0, 0x00);
@@ -17663,8 +18012,8 @@ static void keylock_set(struct mt6681_priv *priv)
 	regmap_write(priv->regmap, MT6681_DA_INTF_STTING1, 0x75);
 	regmap_write(priv->regmap, MT6681_MTC_VOW_CTL0, 0x13);
 	regmap_write(priv->regmap, MT6681_DA_INTF_STTING3, 0x08);
+	regmap_update_bits(priv->regmap, MT6681_STRUP_ELR_3, RG_V0D7V_TRIM_SUS_SEL_MASK_SFT, 0x1 << RG_V0D7V_TRIM_SUS_SEL_SFT);
 	regmap_write(priv->regmap, MT6681_TSBG_PMU_CON2, 0x8);
-	regmap_write(priv->regmap, MT6681_STRUP_ELR_3, 0x20);
 
 }
 
@@ -17681,7 +18030,7 @@ static void keylock_reset(struct mt6681_priv *priv)
 	regmap_write(priv->regmap, MT6681_HK_TOP_WKEY_H, 0x66);
 
 	regmap_write(priv->regmap, MT6681_TOP_CON, 0x07);
-	regmap_write(priv->regmap, MT6681_TOP_CON2, 0x1f);
+	//regmap_write(priv->regmap, MT6681_TOP_CON2, 0x1f);
 	regmap_write(priv->regmap, MT6681_TEST_CON0, 0x1f);
 	regmap_write(priv->regmap, MT6681_TOP_CKPDN_CON0, 0x5b);
 	regmap_write(priv->regmap, MT6681_DA_INTF_STTING3, 0x8);
@@ -17690,15 +18039,17 @@ static void keylock_reset(struct mt6681_priv *priv)
 	regmap_write(priv->regmap, MT6681_PLT_CON1, 0x0c);
 	regmap_write(priv->regmap, MT6681_HK_TOP_CLK_CON0, 0x15);
 	regmap_write(priv->regmap, MT6681_AUXADC_CON0, 0x00);
-	regmap_write(priv->regmap, MT6681_AUXADC_TRIM_SEL2, 0x40);
+	regmap_update_bits(priv->regmap, MT6681_AUXADC_TRIM_SEL2, AUXADC_TRIM_CH13_SEL_MASK_SFT, 0x1 << AUXADC_TRIM_CH13_SEL_SFT);
 	regmap_write(priv->regmap, MT6681_TOP_TOP_CKHWEN_CON0, 0x0F);
 	regmap_write(priv->regmap, MT6681_LDO_TOP_CLK_DCM_CON0, 0x01);
 	regmap_write(priv->regmap, MT6681_LDO_TOP_VR_CLK_CON0, 0x00);
 	regmap_write(priv->regmap, MT6681_LDO_VAUD18_CON2, 0x1C);
 	regmap_write(priv->regmap, MT6681_DA_INTF_STTING1, 0x76);
 	regmap_write(priv->regmap, MT6681_DA_INTF_STTING3, 0x8);
+	regmap_update_bits(priv->regmap, MT6681_STRUP_ELR_3, RG_V0D7V_TRIM_SUS_SEL_MASK_SFT, 0x1 << RG_V0D7V_TRIM_SUS_SEL_SFT);
 	regmap_write(priv->regmap, MT6681_TSBG_PMU_CON2, 0x0);
-	regmap_write(priv->regmap, MT6681_STRUP_ELR_3, 0x1);
+	udelay(2000);
+
 }
 
 static void codec_gpio_init(struct mt6681_priv *priv)
@@ -22719,10 +23070,10 @@ static int mt6681_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+/*#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
 bool mtk_ecid_dump_enable(void);
 #endif
-
+*/
 static ssize_t mt6681_codec_read(struct mt6681_priv *priv, char *buffer,
 				 size_t size)
 
@@ -22757,11 +23108,11 @@ static ssize_t mt6681_codec_read(struct mt6681_priv *priv, char *buffer,
 	n += scnprintf(buffer + n, size - n, "\tset_rch_dc_compensation = %p\n",
 		       priv->ops.set_rch_dc_compensation);
 
-#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
-	if (mtk_ecid_dump_enable())
-		n += scnprintf(buffer + n, size - n, "priv->hp_ecid = MT6681P_ECID:%llX\n",
+//#if IS_ENABLED(CONFIG_MTK_ECCCI_DRIVER)
+	/*if (mtk_ecid_dump_enable())*/
+	n += scnprintf(buffer + n, size - n, "priv->hp_ecid = MT6681P_ECID:%llX\n",
 		       priv->hw_ecid);
-#endif
+//#endif
 	n += scnprintf(buffer + n, size - n, "hp_impedance = %d\n",
 		       priv->hp_impedance);
 	n += scnprintf(buffer + n, size - n, "hp_current_calibrate_val = %d\n",
@@ -38965,6 +39316,34 @@ static int mt6681_platform_driver_probe(struct platform_device *pdev)
 		ARRAY_SIZE(mt6681_dai_driver));
 }
 
+static int codec_resume(struct device *dev)
+{
+	struct mt6681_priv *priv = dev_get_drvdata(dev);
+	int ret = 0;
+	unsigned int data = 0;
+	struct i2c_adapter *adap = priv->i2c_client->adapter;
+
+	scp_wake_request(adap);
+
+	dev_info(priv->dev, "%s(), resume test\n", __func__);
+
+	regmap_write(priv->regmap, MT6681_AUDDEC_PMU_CON28, 0x33);
+
+	ret = regmap_read(priv->regmap, MT6681_AUDDEC_PMU_CON28, &data);
+	if (ret < 0)
+		dev_info(priv->dev, "%s() Cannot read MT6681_AUDDEC_PMU_CON28\n", __func__);
+	else
+		dev_info(priv->dev, "%s() MT6681_AUDDEC_PMU_CON28 = %d\n", __func__, data);
+
+	scp_wake_release(adap);
+
+	return 0;
+}
+
+static const struct dev_pm_ops codec_pm_ops = {
+	.resume = codec_resume,
+};
+
 static const struct of_device_id mt6681_of_match[] = {
 	{
 		.compatible = "mediatek,mt6681-sound",
@@ -38976,6 +39355,7 @@ static struct platform_driver mt6681_platform_driver = {
 	.driver = {
 			.name = DEVICE_MT6681_NAME,
 			.of_match_table = mt6681_of_match,
+			.pm = &codec_pm_ops,
 		},
 	.probe = mt6681_platform_driver_probe,
 };

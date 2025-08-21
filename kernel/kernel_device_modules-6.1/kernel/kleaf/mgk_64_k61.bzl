@@ -201,6 +201,8 @@ mgk_64_k61_device_modules = [
     "drivers/gpu/drm/panel/ac234_p_3_a0004_cmd_panel.ko",
     "drivers/gpu/drm/panel/oplus_panel/aa600_p_7_a0025_vdo_panel.ko",
     "drivers/gpu/drm/panel/oplus_panel/aa600_p_3_a0025_vdo_panel.ko",
+    "drivers/gpu/drm/panel/oplus_panel/ac304_p_7_a0025_vdo_panel.ko",
+    "drivers/gpu/drm/panel/oplus_panel/ac304_p_3_a0027_vdo_panel.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ab946_p_3_a0020_dsi_cmd_bcp.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ab948_p_7_a0020_dsi_cmd.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ae037_p_3_a0026_dsi_vdo.ko",
@@ -706,6 +708,7 @@ mgk_64_k61_device_modules = [
     "sound/soc/codecs/audio/codecs/tfa98xx/snd-soc-tfa98xx.ko",
     "sound/soc/codecs/audio/codecs/aw882xx_v1.13.0/snd-soc-aw882xx.ko",
     "sound/soc/codecs/audio/codecs/oplus_typec_switch/snd-soc-typec-switch.ko",
+    "sound/soc/codecs/audio/oplus_audio_netlink/oplus_audio_netlink.ko",
     "sound/soc/mediatek/audio_dsp/mtk-soc-offload-common.ko",
     "sound/soc/mediatek/audio_dsp/snd-soc-audiodsp-common.ko",
     "sound/soc/mediatek/audio_scp/mtk-scp-audiocommon.ko",
@@ -730,6 +733,7 @@ mgk_64_k61_device_modules = [
     "drivers/dma-buf/heaps/mm_osvelte/oplus_bsp_mm_osvelte.ko",
     "drivers/soc/oplus/storage/common/storage_log/oplus_storage_log.ko",
     "drivers/soc/oplus/storage/common/oplus_uprobe/oplus_uprobe.ko",
+    "drivers/soc/oplus/storage/common/file_record/oplus_file_record.ko",
     "drivers/base/magtransfer/oplus_magcvr_notify.ko",
 ]
 

@@ -785,6 +785,9 @@ static void mtk_drm_vdo_mode_leave_idle(struct drm_crtc *crtc)
 
 	mtk_crtc_pkt_create(&handle, crtc, client);
 
+	cmdq_pkt_wfe(handle,
+			mtk_crtc->gce_obj.event[EVENT_VDO_CABC_EOF]);
+
 	if (mtk_drm_helper_get_opt(priv->helper_opt,
 				   MTK_DRM_OPT_IDLEMGR_DISABLE_ROUTINE_IRQ)) {
 		mtk_disp_mutex_inten_enable_cmdq(mtk_crtc->mutex[0], handle);
@@ -800,6 +803,9 @@ static void mtk_drm_vdo_mode_leave_idle(struct drm_crtc *crtc)
 		mtk_ddp_comp_io_cmd(comp, handle, DSI_VFP_DEFAULT_MODE, NULL);
 		mtk_ddp_comp_io_cmd(comp, handle, DSI_LFR_SET, &en);
 	}
+
+	cmdq_pkt_set_event(handle,
+			mtk_crtc->gce_obj.event[EVENT_VDO_CABC_EOF]);
 
 	cmdq_pkt_flush(handle);
 	cmdq_pkt_destroy(handle);

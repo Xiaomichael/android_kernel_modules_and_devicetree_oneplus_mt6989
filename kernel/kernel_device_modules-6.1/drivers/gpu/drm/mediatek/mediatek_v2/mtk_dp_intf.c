@@ -676,9 +676,9 @@ static void mtk_dp_intf_prepare(struct mtk_ddp_comp *comp)
 			DPTXERR("%s Failed to enable hf_fdp_ck clock: %d\n",
 				__func__, ret);
 		//ret = clk_prepare_enable(dp_intf->pclk);
-		if (ret < 0)
+		/*if (ret < 0)
 			DPTXERR("%s Failed to enable pclk clock: %d\n",
-				__func__, ret);
+				__func__, ret);*/
 		DPTXMSG("%s:succesed enable dp_intf clock\n", __func__);
 	} else
 		DPTXERR("Failed to enable dp_intf clock\n");

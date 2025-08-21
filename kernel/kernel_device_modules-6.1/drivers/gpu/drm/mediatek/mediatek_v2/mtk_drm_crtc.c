@@ -5329,7 +5329,7 @@ void mtk_crtc_load_round_corner_pattern(struct drm_crtc *crtc,
 					struct cmdq_pkt *handle);
 
 void mtk_crtc_mode_switch_on_ap_config(struct mtk_drm_crtc *mtk_crtc,
-	struct drm_crtc_state *old_state)
+	struct drm_crtc_state *old_state, struct cmdq_pkt *atomic_cmdq_handle)
 {
 	int i, j;
 	struct drm_crtc *crtc = &mtk_crtc->base;
@@ -5339,6 +5339,8 @@ void mtk_crtc_mode_switch_on_ap_config(struct mtk_drm_crtc *mtk_crtc,
 	struct mtk_ddp_config scaling_cfg = {0};
 	struct mtk_ddp_comp *comp;
 	struct mtk_ddp_comp *output_comp;
+	/* true:vdo merge pkt, false:cmd split pkt*/
+	bool bmerge_pkt = false;
 
 	output_comp = mtk_ddp_comp_request_output(mtk_crtc);
 	if (!output_comp) {
@@ -5392,7 +5394,21 @@ void mtk_crtc_mode_switch_on_ap_config(struct mtk_drm_crtc *mtk_crtc,
 	mtk_crtc_pkt_create(&cmdq_handle, &mtk_crtc->base,
 				mtk_crtc->gce_obj.client[CLIENT_CFG]);
 
-	if (!mtk_crtc_is_frame_trigger_mode(&mtk_crtc->base)) {
+	if (atomic_cmdq_handle == NULL) {
+		mtk_crtc_pkt_create(&cmdq_handle, &mtk_crtc->base,
+				mtk_crtc->gce_obj.client[CLIENT_CFG]);
+		bmerge_pkt = false;
+
+		if (mtk_drm_helper_get_opt(priv->helper_opt, MTK_DRM_OPT_MML_PRIMARY))
+			mml_cmdq_pkt_init(crtc, cmdq_handle);
+	} else {
+		//Combine atomic & ap config
+		cmdq_handle = atomic_cmdq_handle;
+		bmerge_pkt = true;
+		/*Avoid to dup call mml_cmdq_pkt_init, remove it*/
+	}
+
+	if (!mtk_crtc_is_frame_trigger_mode(&mtk_crtc->base) && !bmerge_pkt) {
 		/* vdo mode wait frame done */
 		cmdq_pkt_wfe(cmdq_handle,
 			mtk_crtc->gce_obj.event[EVENT_CMD_EOF]);
@@ -5530,8 +5546,10 @@ void mtk_crtc_mode_switch_on_ap_config(struct mtk_drm_crtc *mtk_crtc,
 
 	drm_update_dal(&mtk_crtc->base, cmdq_handle);
 
-	cmdq_pkt_flush(cmdq_handle);
-	cmdq_pkt_destroy(cmdq_handle);
+	if (bmerge_pkt == false) {
+		cmdq_pkt_flush(cmdq_handle);
+		cmdq_pkt_destroy(cmdq_handle);
+	}
 
 	mtk_crtc->old_mode_switch_state = old_state;
 	atomic_set(&mtk_crtc->singal_for_mode_switch, 1);
@@ -5824,9 +5842,16 @@ static void mtk_crtc_disp_mode_switch_begin(struct drm_crtc *crtc,
 		&& (mtk_crtc->res_switch == RES_SWITCH_ON_DDIC))
 		mtk_crtc_mode_switch_config(mtk_crtc, old_state);
 	else if ((mode_chg_index & MODE_DSI_RES)
-		&& (mtk_crtc->res_switch == RES_SWITCH_ON_AP))
-		mtk_crtc_mode_switch_on_ap_config(mtk_crtc, old_state);
-	else if (output_comp) {/* Change DSI mipi clk & send LCM cmd */
+		&& (mtk_crtc->res_switch == RES_SWITCH_ON_AP)) {
+
+		if (mtk_crtc_is_frame_trigger_mode(crtc)) {
+			/* cmd phone keep original split ap & frame config handle */
+			mtk_crtc_mode_switch_on_ap_config(mtk_crtc, old_state, NULL);
+		} else {
+			/* vdo phone combine ap & frame config handle */
+			mtk_crtc_mode_switch_on_ap_config(mtk_crtc, old_state, cmdq_handle);
+		}
+	} else if (output_comp) {/* Change DSI mipi clk & send LCM cmd */
 		//mtk_ddp_comp_io_cmd(output_comp, NULL, DSI_TIMING_CHANGE, old_state);
 		/* Use thread to accelerate mode_switch */
 		mtk_crtc->old_mode_switch_state = old_state;
@@ -7896,7 +7921,7 @@ int mtk_crtc_fill_fb_para(struct mtk_drm_crtc *mtk_crtc)
 	} else {
 		fb_info->fb_pa = fb_base;
 		fb_info->width = ALIGN_TO_32(mtk_crtc->base.mode.hdisplay);
-		fb_info->height = ALIGN_TO_32(mtk_crtc->base.mode.vdisplay) * 3;
+		fb_info->height = ALIGN_TO_32(mtk_crtc->base.mode.vdisplay);
 		fb_info->pitch = fb_info->width * 4;
 		fb_info->size = fb_info->pitch * fb_info->height;
 
@@ -12119,11 +12144,19 @@ void mtk_crtc_config_round_corner(struct drm_crtc *crtc,
 	struct mtk_ddp_config cfg;
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_ddp_comp *comp;
+#ifdef OPLUS_FEATURE_DISPLAY
+	struct mtk_ddp_comp *output_comp;
+	char *panel_name = NULL;
+#endif
 	int i, j;
 	int cur_path_idx;
 
 //	cfg.w = crtc->mode.hdisplay;
 //	cfg.h = crtc->mode.vdisplay;
+#ifdef OPLUS_FEATURE_DISPLAY
+	output_comp = mtk_ddp_comp_request_output(mtk_crtc);
+	mtk_ddp_comp_io_cmd(output_comp, NULL, GET_PANEL_NAME, &panel_name);
+#endif
 
 	if (mtk_crtc_with_sub_path(crtc, mtk_crtc->ddp_mode))
 		cur_path_idx = DDP_SECOND_PATH;
@@ -12139,6 +12172,14 @@ void mtk_crtc_config_round_corner(struct drm_crtc *crtc,
 			comp->id == DDP_COMPONENT_POSTMASK1) {
 			cfg.w = mtk_crtc_get_width_by_comp(__func__, crtc, comp, false);
 			cfg.h = mtk_crtc_get_height_by_comp(__func__, crtc, comp, false);
+#ifdef OPLUS_FEATURE_DISPLAY
+			if (!strcmp(panel_name, "ac304_p_3_a0027_vdo_panel") ||
+				!strcmp(panel_name, "ac304_p_7_a0025_vdo_panel")) {
+				if (cfg.h == 2372) {
+					cfg.h = 2376;
+				}
+			}
+#endif
 			mtk_ddp_comp_config(comp, &cfg, handle);
 			break;
 		}
@@ -13078,10 +13119,19 @@ struct cmdq_pkt *mtk_crtc_gce_commit_begin(struct drm_crtc *crtc,
 		mtk_crtc_pkt_create(&cmdq_handle, crtc,
 			mtk_crtc->gce_obj.client[CLIENT_CFG]);
 
-	/* mml need to power on InlineRotate and sync with mml */
-	if (mtk_drm_helper_get_opt(priv->helper_opt, MTK_DRM_OPT_MML_PRIMARY) &&
-		need_sync_mml)
-		mml_cmdq_pkt_init(crtc, cmdq_handle);
+	if (!mtk_crtc_is_frame_trigger_mode(crtc)) {
+		/* vdo make atomic to stop mml sync*/
+		if (mtk_drm_helper_get_opt(priv->helper_opt, MTK_DRM_OPT_MML_PRIMARY) && need_sync_mml)
+			mml_cmdq_pkt_init(crtc, cmdq_handle);
+	} else {
+		/* mml need to power on InlineRotate and sync with mml */
+		if (mtk_drm_helper_get_opt(priv->helper_opt, MTK_DRM_OPT_MML_PRIMARY) &&
+			need_sync_mml && old_crtc_state && !(crtc->state->adjusted_mode.hdisplay !=
+			old_crtc_state->adjusted_mode.hdisplay &&
+			(old_mtk_state->prop_val[CRTC_PROP_DISP_MODE_IDX] !=
+			 crtc_state->prop_val[CRTC_PROP_DISP_MODE_IDX])))
+			mml_cmdq_pkt_init(crtc, cmdq_handle);
+	}
 
 	/*Msync 2.0 change to check vfp period token instead of EOF*/
 	if (!mtk_crtc_is_frame_trigger_mode(crtc) &&

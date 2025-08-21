@@ -15,6 +15,10 @@
 #include "oplus_display_trace.h"
 #include "mtk_drm_mmp.h"
 
+#if defined(CONFIG_PXLW_IRIS)
+#include "pw_iris_loop_back.h"
+#endif
+
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
 #include "oplus_display_onscreenfingerprint.h"
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
@@ -311,6 +315,15 @@ int oplus_display_panel_set_cabc(void *buf)
 	return 0;
 }
 
+int oplus_display_panel_get_iris_loopback_status(void *buf)
+{
+#if defined(CONFIG_PXLW_IRIS)
+	uint32_t *status = buf;
+
+	*status = iris_loop_back_validate();
+#endif
+	return 0;
+}
 
 
 int oplus_display_panel_get_closebl_flag(void *buf)

@@ -177,7 +177,8 @@ enum {
 #endif
 	TCP_NOTIFY_PS_CHANGE,
 	TCP_NOTIFY_CC_HI,
-	TCP_NOTIFY_MISC_END = TCP_NOTIFY_CC_HI,
+	TCP_NOTIFY_ALERT_RATELIMITED,
+	TCP_NOTIFY_MISC_END = TCP_NOTIFY_ALERT_RATELIMITED,
 };
 
 struct tcp_ny_pd_state {
@@ -434,6 +435,7 @@ struct tcp_notify {
 #endif
 		int vbus_level;
 		int cc_hi;
+		bool alert_ratelimited;
 	};
 };
 
@@ -963,6 +965,9 @@ extern bool tcpm_inquire_floating_ground(struct tcpc_device *tcpc);
 extern uint8_t tcpm_inquire_typec_local_rp(struct tcpc_device *tcpc);
 extern void tcpm_inquire_sink_vbus(struct tcpc_device *tcpc,
 				   int *mv, int *ma, uint8_t *type);
+
+extern int tcpm_set_usb_dpdm_pull_low(
+	struct tcpc_device *tcpc, bool enable);
 
 extern int tcpm_typec_set_usb_sink_curr(
 	struct tcpc_device *tcpc, int curr);

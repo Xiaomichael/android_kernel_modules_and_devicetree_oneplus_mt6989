@@ -52,6 +52,7 @@ void nopreempt_state_systrace_c(unsigned int cpu, int nopreempt_state);
 #endif
 
 int oplus_idle_cpu(int cpu);
+inline int get_task_cls_for_scene(struct task_struct *task);
 
 #ifdef CONFIG_OPLUS_ADD_CORE_CTRL_MASK
 bool oplus_cpu_halted(unsigned int cpu);

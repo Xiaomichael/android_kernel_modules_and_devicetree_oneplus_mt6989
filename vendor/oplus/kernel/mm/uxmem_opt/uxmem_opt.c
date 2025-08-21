@@ -550,14 +550,20 @@ static int ux_page_pool_init(void)
 	return 0;
 }
 
-inline int task_is_fg(struct task_struct *tsk)
+inline bool is_top_task(struct task_struct *tsk)
 {
-	int cur_uid;
+	struct cgroup_subsys_state *css = NULL;
+	bool is_top;
 
-	cur_uid = task_uid(tsk).val;
-	if (is_fg(cur_uid))
-		return 1;
-	return 0;
+	if (tsk == NULL)
+		return false;
+
+	rcu_read_lock();
+	css = task_css(tsk, cpu_cgrp_id);
+	is_top = (css && css->id == SA_CGROUP_TOP_APP);
+	rcu_read_unlock();
+
+	return is_top;
 }
 
 static inline bool current_is_key_task(void)
@@ -567,7 +573,6 @@ static inline bool current_is_key_task(void)
 	return test_task_ux(current) || rt_task(current)
 		|| test_bit(IM_FLAG_SURFACEFLINGER, &im_flag)
 		|| test_bit(IM_FLAG_SYSTEMSERVER_PID, &im_flag)
-		|| task_is_fg(current)
 		|| (current->flags & PF_WQ_WORKER);
 }
 
@@ -576,11 +581,12 @@ static void __nocfi get_page_from_uxmempool(void *data, gfp_t gfp_mask, int orde
 {
 	struct page *page = NULL;
 
-	if (current_is_key_task() && !(gfp_mask & __GFP_DMA32)) {
+	if ((current_is_key_task() || is_top_task(current)) && !(gfp_mask & __GFP_DMA32)) {
 		page = ux_page_pool_alloc_pages(order, migratetype);
 		if (page) {
 			if (!page_count(page))
-				prep_new_page_dup(page, order, gfp_mask, ALLOC_WMARK_LOW);
+				/* clear __GFP_DIRECT_RECLAIM because preempt is disabled in vendor hook's call back */
+				prep_new_page_dup(page, order, gfp_mask & ~(__GFP_DIRECT_RECLAIM), ALLOC_WMARK_LOW);
 			else if (order && (gfp_mask & __GFP_COMP))
 				prep_compound_page_dup(page, order);
 		}
