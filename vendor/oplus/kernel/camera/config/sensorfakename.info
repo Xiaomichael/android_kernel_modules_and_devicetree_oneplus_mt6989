@@ -1,0 +1,8 @@
+#project    hardware_name     fake_name     des
+Honda_24891      IMX882        hondamain         main cam
+Honda_24891      OV08D         hondauwide        ultra wide cam
+Honda_24891      IMX480        hondafront        front cam
+
+Subaru_24825   IMX882         subarumain   main cam
+Subaru_24825   OV02B10        subarumono   mono cam
+Subaru_24825   IMX480         subarufront  front cam
