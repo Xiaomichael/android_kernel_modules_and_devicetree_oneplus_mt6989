@@ -5068,6 +5068,18 @@ void gauge_cali_track_trig_upload(struct mtk_battery *gm,
 	}
 }
 
+static void meter_sync_plugin_state(void)
+{
+	struct mtk_battery *gm;
+
+	gm = get_mtk_battery();
+
+	if (gm == NULL)
+		return;
+
+	wakeup_fg_algo(gm,FG_INTR_CHARGER_IN);
+}
+
 static struct oplus_gauge_operations oplus_battery_gauge = {
 	.get_battery_mvolts 		= meter_fg_30_get_battery_mvolts,
 	.get_battery_temperature		= meter_fg_30_get_battery_temperature,
@@ -5097,6 +5109,7 @@ static struct oplus_gauge_operations oplus_battery_gauge = {
 	.get_batt_qmax				= meter_fg_30_get_batt_qmax,
 	.get_gauge_car_c			= meter_fg_30_get_gauge_car_c,
 	.get_battery_hmac			= meter_fg_30_get_gauge_hmac,
+	.sync_plugin_state			= meter_sync_plugin_state,
 };
 #endif
 

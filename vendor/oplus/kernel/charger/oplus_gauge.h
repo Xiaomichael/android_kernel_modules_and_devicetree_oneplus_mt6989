@@ -151,6 +151,8 @@ struct oplus_gauge_operations {
 	int (*get_dec_fg_type)(void);
 	int (*get_fg_vct)(void);
 	bool (*set_fg_vct)(int vct);
+	void (*sync_plugin_state)(void);
+	void (*get_device_name)(char *name, int len);
 };
 
 /****************************************

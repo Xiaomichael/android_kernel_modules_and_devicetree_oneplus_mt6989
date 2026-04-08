@@ -601,7 +601,6 @@ static void pd_sink_set_vol_and_cur(struct pd_manager_chip *chip,
 static int tcpc_pd_state_change(struct pd_manager_chip *chip, struct tcp_notify *noti)
 {
 	uint32_t partner_vdos[VDO_MAX_NR];
-	int pd_type;
 	int ret = 0;
 
 	switch (noti->pd_state.connected) {
@@ -654,16 +653,6 @@ static int tcpc_pd_state_change(struct pd_manager_chip *chip, struct tcp_notify 
 		break;
 	case PD_CONNECT_PE_READY_SRC:
 	case PD_CONNECT_PE_READY_SRC_PD30:
-		/* update chip->pd_active */
-		pd_type = noti->pd_state.connected ==
-					  PD_CONNECT_PE_READY_SNK_APDO ?
-				  OPLUS_CHG_USB_TYPE_PD_PPS :
-					OPLUS_CHG_USB_TYPE_PD;
-		tcpc_set_pd_type(chip, pd_type);
-		pd_sink_set_vol_and_cur(chip, chip->sink_mv_old,
-					chip->sink_ma_old,
-					TCP_VBUS_CTRL_PD_STANDBY);
-
 		typec_set_pwr_opmode(chip->typec_port, TYPEC_PWR_MODE_PD);
 		if (!chip->partner)
 			break;

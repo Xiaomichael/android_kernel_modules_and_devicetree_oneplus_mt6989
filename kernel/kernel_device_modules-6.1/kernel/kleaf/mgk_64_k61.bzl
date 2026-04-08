@@ -134,7 +134,6 @@ mgk_64_k61_device_modules = [
     "drivers/gpu/drm/mediatek/mediatek_v2/mtk_panel_ext.ko",
     "drivers/gpu/drm/mediatek/mediatek_v2/mtk_sync.ko",
     "drivers/gpu/drm/mediatek/mml/mtk-mml.ko",
-    "drivers/gpu/drm/bias/oplus23661_aw37501_bias.ko",
     "drivers/gpu/drm/panel/k6985v1_64_alpha/panel-nt37705-alpha-cmd.ko",
     "drivers/gpu/drm/panel/k6989v1_64_alpha/panel-ili7838e-alpha-cmd.ko",
     "drivers/gpu/drm/panel/k6989v1_64_alpha/panel-ili7838e-dv2-alpha-cmd.ko",
@@ -207,11 +206,6 @@ mgk_64_k61_device_modules = [
     "drivers/gpu/drm/panel/oplus_panel/panel_ab946_p_3_a0020_dsi_cmd_bcp.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ab948_p_7_a0020_dsi_cmd.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ae037_p_3_a0026_dsi_vdo.ko",
-    "drivers/gpu/drm/panel/ae174_p_1_a0037_cmd_panel.ko",
-    "drivers/gpu/drm/panel/oplus24780_nt37706a_fhdp_dsi_vdo_144hz_dphy_boe.ko",
-    "drivers/gpu/drm/panel/oplus24781_nt37703a_fhdp_hx_dsi_vdo_120hz_dphy.ko",
-    "drivers/gpu/drm/panel/oplus24781_nt37703a_fhdp_dsi_vdo_replace_dphy_boe.ko",
-    "drivers/gpu/drm/panel/oplus25680_td4376b_fhdp_hx_dsi_vdo.ko",
     "drivers/gpu/drm/panel/panel-truly-td4330-vdo.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ac094_p_3_a0004_dsi_cmd.ko",
     "drivers/gpu/drm/panel/oplus_panel/panel_ac094_p_b_a0004_dsi_cmd.ko",
@@ -1021,12 +1015,6 @@ def get_overlay_modules_list():
         mgk_64_k61_device_modules.remove("drivers/thermal/mediatek/md_cooling_all.ko")
 
         mgk_64_k61_device_modules.append("drivers/misc/mediatek/pmic_tia/pmic_tia.ko")
-
-    if "oplus6878.config" in DEFCONFIG_OVERLAYS:
-        mgk_64_k61_device_modules.remove("kernel/oplus_cpu/oplus_overload/oplus_bsp_task_overload.ko")
-        mgk_64_k61_device_modules.remove("kernel/oplus_cpu/cpufreq_bouncing/cpufreq_bouncing.ko")
-        mgk_64_k61_device_modules.append("sound/soc/codecs/audio/codecs/frsm_i2ca_v5.2.2/snd-soc-frsm-i2ca.ko")
-        mgk_64_k61_device_modules.append("sound/soc/codecs/audio/codecs/aw883xx/snd-smartpa-aw883xx.ko")
 
     if "oplus6989v2.config" in DEFCONFIG_OVERLAYS:
         mgk_64_k61_device_modules.append("drivers/power/supply/mt6379-battery.ko")

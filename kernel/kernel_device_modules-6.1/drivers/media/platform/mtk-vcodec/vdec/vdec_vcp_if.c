@@ -786,12 +786,11 @@ return_vdec_ipi_ack:
 				vdec_vcp_ipi_send(inst, msg, sizeof(*msg), true, false, false);
 				break;
 			case VCU_IPIMSG_DEC_LOCK_CORE:
-				get_dvfs_data(vcu->ctx->dev, msg->no_need_put);
 				if (msg->payload) {
 					mtk_vcodec_dec_pw_on(&vcu->ctx->dev->pm);
 					dev->dec_ao_pw_cnt++;
-					mtk_vdec_pmqos_begin_frame(vcu->ctx);
 				} else {
+					get_dvfs_data(vcu->ctx->dev, msg->no_need_put);
 					vdec_decode_prepare(vcu->ctx, MTK_VDEC_CORE);
 					atomic_set(&dev->dec_hw_active[MTK_VDEC_CORE], 1);
 				}
@@ -799,12 +798,11 @@ return_vdec_ipi_ack:
 				vdec_vcp_ipi_send(inst, msg, sizeof(*msg), true, false, false);
 				break;
 			case VCU_IPIMSG_DEC_UNLOCK_CORE:
-				get_dvfs_data(vcu->ctx->dev, msg->no_need_put);
 				if (msg->payload) {
-					mtk_vdec_pmqos_end_frame(vcu->ctx);
 					dev->dec_ao_pw_cnt--;
 					mtk_vcodec_dec_pw_off(&vcu->ctx->dev->pm);
 				} else {
+					get_dvfs_data(vcu->ctx->dev, msg->no_need_put);
 					atomic_set(&dev->dec_hw_active[MTK_VDEC_CORE], 0);
 					vdec_decode_unprepare(vcu->ctx, MTK_VDEC_CORE);
 				}

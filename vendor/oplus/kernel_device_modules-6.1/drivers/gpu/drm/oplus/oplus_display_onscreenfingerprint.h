@@ -201,6 +201,7 @@ enum hrtimer_restart oplus_ofp_notify_uiready_timer_handler(struct hrtimer *time
 int oplus_ofp_notify_uiready(void *mtk_drm_crtc);
 int oplus_ofp_lhbm_pressed_icon_grayscale_update(void *para_list, unsigned int bl_level);
 bool oplus_ofp_backlight_filter(void *drm_crtc, void *cmdq_pkt, unsigned int bl_level);
+int oplus_ofp_lhbm_setbacklight(void *dsi);
 
 /* -------------------- aod -------------------- */
 int oplus_ofp_video_mode_aod_handle(void *drm_crtc, void *mtk_panel_ext, void *drm_panel, void *mtk_dsi, void *dcs_write_gce, void *cmdq_handle);

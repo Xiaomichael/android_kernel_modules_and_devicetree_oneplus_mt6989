@@ -1796,6 +1796,22 @@ bool oplus_ofp_backlight_filter(void *drm_crtc, void *cmdq_pkt, unsigned int bl_
 }
 EXPORT_SYMBOL(oplus_ofp_backlight_filter);
 
+int oplus_ofp_lhbm_setbacklight(void *dsi)
+{
+	struct mtk_dsi *mtk_dsi = dsi;
+	bool lhbm_pressed_icon_on;
+
+	if (!mtk_dsi) {
+		return -EINVAL;
+	}
+	if((oplus_ofp_is_supported()) && (oplus_ofp_get_hbm_state())) {
+		lhbm_pressed_icon_on = true;
+		mtk_ddp_comp_io_cmd(&mtk_dsi->ddp_comp, NULL, OPLUS_OFP_SET_LHBM_PRESSED_ICON, &lhbm_pressed_icon_on);
+	}
+	return 1;
+}
+EXPORT_SYMBOL(oplus_ofp_lhbm_setbacklight);
+
 int oplus_ofp_aod_off_backlight_recovery(void *drm_crtc, void *mtk_crtc_state, void *cmdq_pkt)
 {
 	int rc = 0;

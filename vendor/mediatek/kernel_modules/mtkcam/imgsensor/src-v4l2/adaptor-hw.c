@@ -10,6 +10,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include <soc/oplus/system/oplus_project.h>
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
 #include "kd_imgsensor.h"
 #include "oplus_kd_imgsensor.h"
@@ -587,6 +588,11 @@ int do_hw_power_off(struct adaptor_ctx *ctx)
 
 	if (ctx->subdrv->ops->power_off)
 		subdrv_call(ctx, power_off, NULL);
+	if (is_project(25693) || is_project(25694) || is_project(25612)) {
+		//adaptor_logd(ctx, "mdelay on:%d\n", __LINE__);
+		mdelay(1);
+		//adaptor_logd(ctx, "mdelay off:%d\n", __LINE__);
+	}
 	#ifndef OPLUS_FEATURE_CAMERA_COMMON
 	for (i = ctx->subdrv->pw_seq_cnt - 1; i >= 0; i--) {
 		if (ctx->ctx_pw_seq)

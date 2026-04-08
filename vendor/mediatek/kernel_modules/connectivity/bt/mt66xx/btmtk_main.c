@@ -3357,9 +3357,6 @@ static int bt_close(struct hci_dev *hdev)
 unlock:
 	btmtk_fops_set_state(bdev, BTMTK_FOPS_STATE_CLOSED);
 
-	if (main_info.hif_hook.cif_mutex_unlock)
-		main_info.hif_hook.cif_mutex_unlock(bdev);
-
 	main_info.reset_stack_flag = HW_ERR_NONE;
 
 	/* Drop queues */
@@ -3367,6 +3364,9 @@ unlock:
 	if (!IS_ERR_OR_NULL(bdev->rx_skb))
 		kfree_skb(bdev->rx_skb);
 	bdev->rx_skb = NULL;
+
+	if (main_info.hif_hook.cif_mutex_unlock)
+		main_info.hif_hook.cif_mutex_unlock(bdev);
 
 	BTMTK_INFO("%s: end, reset_stack_flag = %d", __func__, main_info.reset_stack_flag);
 	return 0;

@@ -378,6 +378,7 @@
 					OPLUS_IC_FUNC_CP_SET_UCP_DISABLE
 					OPLUS_IC_FUNC_CP_GET_IIN_MAX
 					OPLUS_IC_FUNC_CP_WATCHDOG_RESET
+					OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE
 				>;
 				virqs = <
 					OPLUS_IC_VIRQ_ERR
@@ -488,9 +489,14 @@
 	};
 };
 
+&mt6379_chg {
+	support_icl_optimization;
+};
+
 &lk_charger {
 	is_support_mt6379;
 	en_vol_ctrl_vibrate = <3200>;
+	support_chg_time_cnt;
 	support_tuv_authentication;
 	high-temp-scheme;
 	charger_no_wiress;
@@ -613,6 +619,9 @@
 		oplus,topic-update-interval = <10000>;
 		oplus,support_subboard_ntc;
 		oplus,sub_btb_curr_limit = <3000>; /* Online current limiting, provided by hardware engineer */
+		oplus,fcl_support;
+		oplus,fcl_index = <0>;
+		oplus,vb_offset = <20>;
 
 		deep_spec,support;
 		deep_spec,uv_thr = <3000>;

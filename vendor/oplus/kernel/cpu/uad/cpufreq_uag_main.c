@@ -2570,10 +2570,6 @@ static int uag_gov_start(struct cpufreq_policy *policy)
 		sg_cpu->sg_policy		= sg_policy;
 	}
 
-#ifdef CONFIG_OPLUS_UAG_AMU_AWARE
-	uag_register_stall_update();
-#endif
-
 #ifdef CONFIG_OPLUS_FEATURE_TOUCH_BOOST
 	touch_boost_init();
 #endif
@@ -2613,9 +2609,6 @@ static void uag_gov_stop(struct cpufreq_policy *policy)
 		waltgov_remove_callback(cpu);
 #endif /* CONFIG_ARCH_MEDIATEK */
 
-#ifdef CONFIG_OPLUS_UAG_AMU_AWARE
-	uag_unregister_stall_update();
-#endif
 
 	synchronize_rcu();
 

@@ -81,6 +81,7 @@ extern int oplus_pcp_lock_clear(void);
 #include "mtk_drm_trace.h"
 #include "pw_iris_log.h"
 #include "pw_iris_api.h"
+#include "pw_iris_lp.h"
 #include "dsi_iris_mtk_api.h"
 #include "dsi_iris_api.h"
 #endif
@@ -4662,10 +4663,16 @@ static void mtk_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct drm_crtc *crtc = encoder->crtc;
 	struct mtk_drm_private *priv = crtc->dev->dev_private;
 	struct mtk_ddp_comp *comp = &dsi->ddp_comp;
+	struct mtk_drm_crtc *mtk_crtc = NULL;
 	int index = drm_crtc_index(crtc);
 	int data = MTK_DISP_BLANK_UNBLANK;
 	unsigned int async_ctrl_flag = 0;
 
+	mtk_crtc = to_mtk_crtc(crtc);
+	if (!mtk_crtc || !mtk_crtc->panel_ext || !mtk_crtc->panel_ext->params) {
+		pr_err("falied to get lcd proc info\n");
+		return;
+	}
 	CRTC_MMP_EVENT_START(index, dsi_resume,
 			(unsigned long)crtc, index);
 
@@ -4732,13 +4739,20 @@ static void mtk_dsi_encoder_enable(struct drm_encoder *encoder)
 		} else if ((comp->id == DDP_COMPONENT_DSI0) && (mtk_dsi_doze_state(dsi))) {
 			DDPMSG("doze early set  powerdown,data =%d\n",data);
 			DDP_PROFILE("[PROFILE] %s before notify start\n", __func__);
-			data = OPLUS_DISP_EVENT_POWERDOWN;
-			mtk_disp_notifier_call_chain(MTK_DISP_EARLY_EVENT_BLANK,
-					&data);
-			data = MTK_DISP_BLANK_POWERDOWN;
-			mtk_disp_notifier_call_chain(MTK_DISP_EARLY_EVENT_BLANK,
-					&data);
-			DDP_PROFILE("[PROFILE] %s before notify end\n", __func__);
+			if (mtk_crtc && mtk_crtc->panel_ext && mtk_crtc->panel_ext->params &&
+							mtk_crtc->panel_ext->params->oplus_display_lcd_tp_aod == 1) {
+				data = MTK_DISP_BLANK_UNBLANK;
+				mtk_disp_notifier_call_chain(MTK_DISP_EARLY_EVENT_BLANK,
+							&data);
+			} else {
+				data = OPLUS_DISP_EVENT_POWERDOWN;
+				mtk_disp_notifier_call_chain(MTK_DISP_EARLY_EVENT_BLANK,
+						&data);
+				data = MTK_DISP_BLANK_POWERDOWN;
+				mtk_disp_notifier_call_chain(MTK_DISP_EARLY_EVENT_BLANK,
+						&data);
+				DDP_PROFILE("[PROFILE] %s before notify end\n", __func__);
+			}
 		} else if (comp->id == DDP_COMPONENT_DSI1) {
 			DDP_PROFILE("[PROFILE] %s before notify start\n", __func__);
 			mtk_disp_sub_notifier_call_chain(MTK_DISP_EARLY_EVENT_BLANK,
@@ -4762,13 +4776,24 @@ static void mtk_dsi_encoder_enable(struct drm_encoder *encoder)
 		} else if ((comp->id == DDP_COMPONENT_DSI0) && (mtk_dsi_doze_state(dsi))) {
 			DDPMSG("doze set powerdown,data =%d\n",data);
 			DDP_PROFILE("[PROFILE] %s after notify end\n", __func__);
-			data = OPLUS_DISP_EVENT_POWERDOWN;
-			mtk_disp_notifier_call_chain(MTK_DISP_EVENT_BLANK,
-						&data);
-			data = MTK_DISP_BLANK_POWERDOWN;
-			mtk_disp_notifier_call_chain(MTK_DISP_EVENT_BLANK,
+			if (mtk_crtc && mtk_crtc->panel_ext && mtk_crtc->panel_ext->params &&
+							mtk_crtc->panel_ext->params->oplus_display_lcd_tp_aod == 1) {
+				data = LCD_CTL_AOD_ON;
+				mtk_disp_notifier_call_chain(MTK_DISP_EVENT_FOR_TOUCH,
 					&data);
-			DDP_PROFILE("[PROFILE] %s after notify end\n", __func__);
+				data = MTK_DISP_BLANK_UNBLANK;
+				mtk_disp_notifier_call_chain(MTK_DISP_EVENT_BLANK,
+					&data);
+				DDPPR_ERR("doze set AOD,data =%d\n",data);
+			} else {
+				data = OPLUS_DISP_EVENT_POWERDOWN;
+				mtk_disp_notifier_call_chain(MTK_DISP_EVENT_BLANK,
+							&data);
+				data = MTK_DISP_BLANK_POWERDOWN;
+				mtk_disp_notifier_call_chain(MTK_DISP_EVENT_BLANK,
+						&data);
+				DDP_PROFILE("[PROFILE] %s after notify end\n", __func__);
+			}
 		}else if (comp->id == DDP_COMPONENT_DSI1) {
 			DDP_PROFILE("[PROFILE] %s after notify start\n", __func__);
 			mtk_disp_sub_notifier_call_chain(MTK_DISP_EVENT_BLANK,
@@ -7059,6 +7084,12 @@ static void mtk_dsi_cmdq_pack_gce(struct mtk_dsi *dsi, struct cmdq_pkt *handle,
 				break;
 			}
 
+#if defined(CONFIG_PXLW_IRIS)
+			if (iris_is_chip_supported() && iris_is_pt_mode(false) && msg.tx_buf) {
+				msg.type = iris_get_cmd_type(*(u8 *)msg.tx_buf, msg.tx_len);
+				iris_dsi_ctrl_dump_desc_cmd(&msg);
+			}
+#endif /*CONFIG_PXLW_IRIS*/
 			tx_buf = msg.tx_buf;
 			type = msg.type;
 
@@ -10706,7 +10737,7 @@ void mtk_dsi_set_mmclk_by_datarate_V2(struct mtk_dsi *dsi,
 
 		last_pixclk = mtk_drm_get_mmclk(&mtk_crtc->base, __func__) / 1000000;
 
-		DDPPR_ERR("%s, %d, crtc:%d, data_rate=%d, last_pixclk=%u, mmclk=%u pixclk_min=%d, dual=%u\n", __func__,
+		DDPINFO("%s, %d, crtc:%d, data_rate=%d, last_pixclk=%u, mmclk=%u pixclk_min=%d, dual=%u\n", __func__,
 				__LINE__, crtc_idx, data_rate, last_pixclk,
 				pixclk, pixclk_min, mtk_crtc->is_dual_pipe);
 
@@ -11749,6 +11780,8 @@ static void mtk_dsi_vdo_aod_ctrl(struct mtk_dsi *dsi,
 			__func__, __LINE__);
 		return;
 	}
+	if (iris_is_chip_supported() && iris_is_pt_mode(false))
+		iris_abyp_switch_proc(ANALOG_BYPASS_MODE);
 	mtk_crtc_pkt_create(&handle, &(mtk_crtc->base), client);
 
 	if(porch_change_flag & MODE_DSI_HFP){

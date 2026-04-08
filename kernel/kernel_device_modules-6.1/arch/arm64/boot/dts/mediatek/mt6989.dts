@@ -15470,29 +15470,28 @@ TOP_LDRO7,TOP_LDRO8,TOP_LDRO9,TOP_LDRO10,TOP_LDRO11,TOP_LDRO12,TOP_LDRO13,TOP_LD
 		compatible = "mediatek,low_battery_throttling";
 		lvsys-thd-enable = <1>;
 		vbat-thd-enable = <1>;
-		thd-volts-l = <
+		bat0-thd-volts-l = <
 			3400 3150 2900
 			3500 3250 3000
 			3600 3350 3100
 			3750 3500 3250>;
-		thd-volts-h = <
+		bat0-thd-volts-h = <
 			3500 3400 3150
 			3600 3500 3250
 			3700 3600 3350
 			3850 3750 3500>;
-		thd-volts-l-2s = <
+		bat1-thd-volts-l = <
 			3400 3150 2900
 			3500 3250 3000
 			3600 3350 3100
 			3750 3500 3250>;
-		thd-volts-h-2s = <
+		bat1-thd-volts-h = <
 			3500 3400 3150
 			3600 3500 3250
 			3700 3600 3350
 			3850 3750 3500>;
 		lvsys-thd-volt-l = <2900>;
 		lvsys-thd-volt-h = <3100>;
-		temperature-max-stage = <3>;
 		temperature-stage-threshold = <25 10 0>;
 
 		bat0-aging-threshold = <1000 2000>;

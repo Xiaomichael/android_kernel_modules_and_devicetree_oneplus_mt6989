@@ -2523,8 +2523,8 @@ void mtk_vdec_check_alive_work(struct work_struct *ws)
 				ctx->dec_params.operating_rate);
 		} else {
 			mtk_vdec_force_update_freq(dev);
-			mtk_vdec_pmqos_begin_inst(ctx);
 		}
+		mtk_vdec_pmqos_begin_inst(ctx);
 	}
 
 	mutex_unlock(&dev->dec_dvfs_mutex);
@@ -4213,8 +4213,8 @@ static int vb2ops_vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 		} else {
 			mtk_v4l2_debug(0, "[%d][VDVFS][VDEC] start ctrl DVFS in AP", ctx->id);
 			mtk_vdec_dvfs_begin_inst(ctx);
-			mtk_vdec_pmqos_begin_inst(ctx);
 		}
+		mtk_vdec_pmqos_begin_inst(ctx);
 		mutex_unlock(&ctx->dev->dec_dvfs_mutex);
 		vcodec_trace_end();
 
@@ -4380,8 +4380,8 @@ static void vb2ops_vdec_stop_streaming(struct vb2_queue *q)
 	} else {
 		mtk_v4l2_debug(0, "[%d][VDVFS][VDEC] stop ctrl DVFS in AP", ctx->id);
 		mtk_vdec_dvfs_end_inst(ctx);
-		mtk_vdec_pmqos_end_inst(ctx);
 	}
+	mtk_vdec_pmqos_end_inst(ctx);
 	mutex_unlock(&ctx->dev->dec_dvfs_mutex);
 	vcodec_trace_end();
 

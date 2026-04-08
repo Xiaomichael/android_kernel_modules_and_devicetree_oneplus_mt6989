@@ -634,6 +634,7 @@ struct mtk_panel_params {
 	bool color_2nit_status;
 	bool color_nature_profession_status;
 	unsigned int panel_bpp;
+	unsigned int oplus_display_lcd_tp_aod;
 	unsigned int oplus_vidle_te_duration;
 	bool seed_sync;
 #endif /* OPLUS_FEATURE_DISPLAY */

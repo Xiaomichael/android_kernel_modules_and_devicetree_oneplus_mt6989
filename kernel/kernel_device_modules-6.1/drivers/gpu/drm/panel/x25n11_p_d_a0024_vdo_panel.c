@@ -731,7 +731,8 @@ int oplus_i2c_set_backlight(unsigned int level)
 		pr_info("%s silence_mode is %d, set backlight to 0\n", __func__, silence_mode);
 	}
 	/* backup backlight */
-	level_backup = level;
+	if (level > 0)
+		level_backup = level;
 	oplus_display_brightness = level;
 	pr_info("[lcd_info]%s: bl_level:%d, mapping value = %d\n", __func__, level, backlight_map[level]);
 
@@ -841,6 +842,11 @@ static int lcm_unprepare(struct drm_panel *panel)
 		pr_err("[lcd_info]%s: panel reset off failed! ret=%d\n", __func__, ret);
 	}
 
+	if (last_backlight > 0) {
+		oplus_i2c_set_backlight(0);
+		pr_info("[lcd_info]%s: set bl to 0 before power off\n", __func__);
+	}
+
 	ret = lcm_backlight_ic_config(panel, 0);
 	if(ret) {
 		pr_err("[lcd_info][error]%s: set bl_bias disable failed! ret=%d line=%d\n", __func__, ret, __LINE__);
@@ -918,7 +924,7 @@ static int lcm_prepare(struct drm_panel *panel)
 #endif
 
 	if(esd_flag)
-		oplus_i2c_set_backlight(level_backup);
+		oplus_i2c_set_backlight(backlight_map[level_backup]);
 
 	pr_info("[lcd_info]%s: --\n", __func__);
 
@@ -1330,7 +1336,8 @@ static int lcm_setbacklight_cmdq(void *dsi, dcs_write_gce cb, void *handle, unsi
 		pr_info("%s silence_mode is %d, set backlight to 0\n", __func__, silence_mode);
 	}
 
-	level_backup = bl_level;
+	if (bl_level > 0)
+		level_backup = bl_level;
 	oplus_display_brightness = bl_level;
 	pr_info("[lcd_info]%s: bl_level:%d, mapping value = %d\n", __func__, bl_level, backlight_map[bl_level]);
 

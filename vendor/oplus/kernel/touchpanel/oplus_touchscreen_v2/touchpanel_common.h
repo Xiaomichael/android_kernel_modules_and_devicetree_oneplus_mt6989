@@ -35,8 +35,6 @@
 #define PDE_DATA pde_data
 #endif
 
-#define LCD_CTL_AOD_ON 0x02
-
 #define TP_SUPPORT_MAX 3
 #define TP_NAME_SIZE_MAX 30
 
@@ -366,6 +364,7 @@ typedef enum lcd_event_type {
 	LCD_CTL_IRQ_ON,
 	LCD_CTL_IRQ_OFF,
 	LCD_CTL_AOD_OFF,
+	LCD_CTL_AOD_ON,
 } lcd_event_type;
 
 typedef enum {
@@ -1180,6 +1179,7 @@ struct touchpanel_data {
 	struct touchpanel_snr   snr[MAX_FINGER_NUM];        /*snr data*/
 	struct touchpanel_last_x_y_point   last_x_y_point[MAX_FINGER_NUM];        /*last_x_y_point data*/
 	struct exception_data    exception_data;			/*exception_data monitor data*/
+	struct irq_desc *tp_irq_desc;
 
 	/******For Game Hot Zone*******/
 	struct tp_aiunit_game_info tp_ic_aiunit_game_info[MAX_AIUNIT_SET_NUM];    /*tp ic aiunit game info*/
@@ -1534,6 +1534,7 @@ struct debug_info_proc_operations {
 	void (*get_delta_data)(void *chip_data, int32_t *deltadata);
 	void (*delta_snr_read)(struct seq_file *s, void *chip_data, uint32_t count);
 	void (*tp_data_record_write)(void *chip_data, int32_t count);
+	void (*tp_data_debug_info_print)(void *chip_data);
 };
 
 /*********PART3:function or variables for other files**********************/

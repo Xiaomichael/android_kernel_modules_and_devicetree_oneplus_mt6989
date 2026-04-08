@@ -289,7 +289,7 @@ void mtk_prepare_vdec_dvfs(struct mtk_vcodec_dev *dev)
 	int ret;
 	struct dev_pm_opp *opp = 0;
 	unsigned long freq = 0;
-	int i = 0, vdec_req = 0, flag = 0, uclamp = 0;
+	int i = 0, vdec_req = 0, flag = 0;
 	struct platform_device *pdev = 0;
 
 	pdev = dev->plat_dev;
@@ -305,18 +305,12 @@ void mtk_prepare_vdec_dvfs(struct mtk_vcodec_dev *dev)
 		mtk_v4l2_debug(0, "[VDEC] no need vdec-mmdvfs-in-adaptive");
 	dev->vdec_dvfs_params.mmdvfs_in_adaptive = vdec_req;
 
-	dev->vdec_dvfs_params.cpu_uclamp_min = -1;
 	ret = of_property_read_s32(pdev->dev.of_node, "vdec-cpu-hint-mode", &flag);
 	if (ret) {
 		mtk_v4l2_debug(0, "[VDEC] no need vdec-cpu-hint-mode");
 		dev->cpu_hint_mode = (1 << MTK_CPU_UNSUPPORT);
-	} else {
+	} else
 		dev->cpu_hint_mode = flag;
-		if (dev->cpu_hint_mode & (1 << MTK_UCLAMP_MODE)) {
-			ret = of_property_read_s32(pdev->dev.of_node, "cpu-uclamp-min", &uclamp);
-			dev->vdec_dvfs_params.cpu_uclamp_min = uclamp;
-		}
-	}
 
 
 
@@ -488,10 +482,17 @@ void mtk_vdec_pmqos_begin_inst(struct mtk_vcodec_ctx *ctx)
 			dev->vdec_dvfs_params.min_freq;
 
 		if (dev->vdec_larb_bw[i].larb_type < VCODEC_LARB_SUM) {
-			mtk_icc_set_bw(dev->vdec_qos_req[i],
-				MBps_to_icc((u32)target_bw), 0);
-			mtk_v4l2_debug(4, "[VDEC] larb %d bw %u MB/s",
-			dev->vdec_larb_bw[i].larb_id, (u32)target_bw);
+			if (dev->vdec_dvfs_params.target_freq == dev->vdec_dvfs_params.min_freq) {
+				mtk_icc_set_bw(dev->vdec_qos_req[i],
+					MBps_to_icc(0), 0);
+				mtk_v4l2_debug(8, "[VDEC] larb %d bw %u (min opp, no request) MB/s",
+				dev->vdec_larb_bw[i].larb_id, (u32)target_bw);
+			} else {
+				mtk_icc_set_bw(dev->vdec_qos_req[i],
+					MBps_to_icc((u32)target_bw), 0);
+				mtk_v4l2_debug(8, "[VDEC] larb %d bw %u MB/s",
+				dev->vdec_larb_bw[i].larb_id, (u32)target_bw);
+			}
 		} else {
 			mtk_v4l2_debug(8, "[VDEC] unknown larb type %d\n",
 				dev->vdec_larb_bw[i].larb_type);
@@ -518,10 +519,17 @@ void mtk_vdec_pmqos_end_inst(struct mtk_vcodec_ctx *ctx)
 			target_bw = 0;
 
 		if (dev->vdec_larb_bw[i].larb_type < VCODEC_LARB_SUM) {
-			mtk_icc_set_bw(dev->vdec_qos_req[i],
-				MBps_to_icc((u32)target_bw), 0);
-			mtk_v4l2_debug(4, "[VDEC] larb %d bw %u MB/s",
-			dev->vdec_larb_bw[i].larb_id, (u32)target_bw);
+			if (dev->vdec_dvfs_params.target_freq == dev->vdec_dvfs_params.min_freq) {
+				mtk_icc_set_bw(dev->vdec_qos_req[i],
+					MBps_to_icc(0), 0);
+				mtk_v4l2_debug(8, "[VDEC] larb %d bw %u (min opp, no request) MB/s",
+				dev->vdec_larb_bw[i].larb_id, (u32)target_bw);
+			} else {
+				mtk_icc_set_bw(dev->vdec_qos_req[i],
+					MBps_to_icc((u32)target_bw), 0);
+				mtk_v4l2_debug(8, "[VDEC] larb %d w %u MB/s",
+				dev->vdec_larb_bw[i].larb_id, (u32)target_bw);
+			}
 		} else {
 			mtk_v4l2_debug(8, "[VDEC] unknown larb type %d",
 				dev->vdec_larb_bw[i].larb_type);
@@ -578,8 +586,8 @@ void mtk_vdec_pmqos_begin_frame(struct mtk_vcodec_ctx *ctx)
 
 	dev = ctx->dev;
 
-	if (dev->vdec_dvfs_params.frame_need_update) {
-		mtk_vdec_dvfs_sync_vsi_data(ctx);
+	if (dev->vdec_dvfs_params.frame_need_update &&
+		(dev->vdec_dvfs_params.target_freq != dev->vdec_dvfs_params.min_freq)) {
 		mtk_vdec_pmqos_begin_inst(ctx);
 	}
 	dev->vdec_dvfs_params.frame_need_update = 0;
@@ -594,7 +602,8 @@ void mtk_vdec_pmqos_end_frame(struct mtk_vcodec_ctx *ctx)
 
 	dev = ctx->dev;
 
-	if (!dev->vdec_dvfs_params.frame_need_update)
+	if (!dev->vdec_dvfs_params.frame_need_update ||
+		(dev->vdec_dvfs_params.target_freq == dev->vdec_dvfs_params.min_freq))
 		return;
 
 	for (i = 0; i < dev->vdec_larb_cnt; i++) {
@@ -608,6 +617,7 @@ void mtk_vdec_pmqos_end_frame(struct mtk_vcodec_ctx *ctx)
 				dev->vdec_larb_bw[i].larb_type);
 		}
 	}
+	dev->vdec_dvfs_params.frame_need_update = 0;
 }
 
 void mtk_vdec_prepare_vcp_dvfs_data(struct mtk_vcodec_ctx *ctx, unsigned long *in)

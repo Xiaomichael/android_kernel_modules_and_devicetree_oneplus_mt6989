@@ -24,7 +24,7 @@
 
 #define BIDIRECT_IRQ_EVNET_NUM			12
 #define IRQ_EVNET_NUM_HL7138			16
-#define DEFAULT_CP_IBUS_DEVATION		800
+#define DEFAULT_CP_IBUS_DEVATION		1000
 #define MAX_IGNORE				6
 #define FIRST_FRAME				0xA8
 #define SVOOC_INIT_VBUS_VOL_LOW			5000
@@ -981,8 +981,8 @@ struct oplus_voocphy_operations {
 	int (*get_voocphy_enable)(struct oplus_voocphy_manager *chip, u8 *data);
 	void (*dump_voocphy_reg)(struct oplus_voocphy_manager *chip);
 	int (*get_chip_id)(struct oplus_voocphy_manager *chip);
-	int (*set_chg_pmid2out)(bool enable, int reason);
-	bool (*get_chg_pmid2out)(void);
+	int (*set_chg_pmid2out)(struct oplus_voocphy_manager *chip, bool enable, int reason);
+	bool (*get_chg_pmid2out)(struct oplus_voocphy_manager *chip);
 	int (*reset_voocphy_ovp)(struct oplus_voocphy_manager *chip);
 	bool (*check_cp_int_happened)(struct oplus_voocphy_manager *chip, bool *dump_reg, bool *send_info);
 	void (*dual_chan_buck_set_ucp)(struct oplus_voocphy_manager *chip, int ucp_value);

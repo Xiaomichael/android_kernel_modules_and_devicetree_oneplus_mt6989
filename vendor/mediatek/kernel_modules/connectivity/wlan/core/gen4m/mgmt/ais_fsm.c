@@ -1776,9 +1776,14 @@ u_int8_t aisFsmStateInit_RetryJOIN(struct ADAPTER *prAdapter,
 
 		for (i = 0; i < MLD_LINK_MAX; i++) {
 			prStaRec = aisGetLinkStaRec(prAisFsmInfo, i);
-			if (prStaRec)
+			if (prStaRec) {
 				prStaRec->ucAuthAlgNum =
 				    (uint8_t) AUTH_ALGORITHM_NUM_SAE;
+
+				if (prStaRec->ucStaState != STA_STATE_1)
+					cnmStaRecChangeState(prAdapter,
+						prStaRec, STA_STATE_1);
+			}
 		}
 	} else if (prAisFsmInfo->ucAvailableAuthTypes &
 		   (uint8_t) AUTH_TYPE_OPEN_SYSTEM) {
@@ -1791,9 +1796,14 @@ u_int8_t aisFsmStateInit_RetryJOIN(struct ADAPTER *prAdapter,
 
 		for (i = 0; i < MLD_LINK_MAX; i++) {
 			prStaRec = aisGetLinkStaRec(prAisFsmInfo, i);
-			if (prStaRec)
+			if (prStaRec) {
 				prStaRec->ucAuthAlgNum =
 				    (uint8_t) AUTH_ALGORITHM_NUM_OPEN_SYSTEM;
+
+				if (prStaRec->ucStaState != STA_STATE_1)
+					cnmStaRecChangeState(prAdapter,
+						prStaRec, STA_STATE_1);
+			}
 		}
 	} else {
 		DBGLOG(AIS, ERROR,

@@ -1392,7 +1392,7 @@ static ssize_t proc_aiunit_game_info_read(struct file *file, char __user *buffer
 
 	} else {
 		get_num = ts->aiunit_game_get_num;
-		if (get_num > 0 && ts->noise_level > 0) {
+		if (get_num > 0 && ts->aiunit_game_enable) {
 			for(num = 0; num < get_num; num++) {
 				if (count > strlen(page)) {
 					snprintf(&page[0] + strlen(page), MAX_AIINFO_SIZE - strlen(page),
@@ -3093,8 +3093,19 @@ static void touch_scen_config_write(struct touchpanel_data *ts, char *input, int
 		mutex_unlock(&ts->mutex);
 		break;
 	case 2:
+		TPD_INFO("set_package_type:%u set value:%d.\n", scene_info->set_package_type, value);
+		if (value == scene_info->set_package_type) {
+			break;
+		}
+		mutex_lock(&ts->mutex);
 		scene_info->set_package_type = value;
-		TPD_INFO("set_package_type is %d\n", scene_info->set_package_type);
+		TS_TP_INFO("%s: set_package_type set:%d.\n", __func__, value);
+		if (!ts->is_suspended && ts->ts_ops->set_package_type && ts->tp_scene_para_switch_support) {
+			ts->ts_ops->set_package_type(ts->chip_data, value);
+		} else {
+			TS_TP_INFO("%s: TP is_suspended.\n", __func__);
+		}
+		mutex_unlock(&ts->mutex);
 		break;
 	case 3:
 		TPD_INFO("pen_sensitive_level:%u set value:%d.\n", scene_info->pen_sensitive_level, value);
@@ -5747,7 +5758,7 @@ int init_touchpanel_proc_part3(struct touchpanel_data *ts, struct proc_dir_entry
 			ts->glove_mode_v2_support
 		},
 		{
-			"pocket_prevent_mode", 0666, NULL, &proc_pocket_prevent_mode, ts, false, true
+			"pocket_prevent_mode", 0666, NULL, &proc_pocket_prevent_mode, ts, false, ts->glove_mode_v2_support
 		},
 		{
 			"leather_cover_enable", 0666, NULL, &leather_cover_enable, ts, false,

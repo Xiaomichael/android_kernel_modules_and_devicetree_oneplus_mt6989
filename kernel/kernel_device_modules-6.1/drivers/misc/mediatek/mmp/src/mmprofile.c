@@ -65,8 +65,8 @@
 #define MMPROFILE_MAX_META_BUFFER_SIZE 0x4000000
 static unsigned int mmprofile_meta_datacookie = 1;
 #else
-/* min buffer size is 0x400*32byte = 32KB */
-#define MMPROFILE_DEFAULT_BUFFER_SIZE 0x18000
+/* min buffer size is 0xC000*32byte = 1.5M */
+#define MMPROFILE_DEFAULT_BUFFER_SIZE 0xC000
 #define MMPROFILE_MIN_META_BUFFER_SIZE 0x0
 #define MMPROFILE_DEFAULT_META_BUFFER_SIZE 0x0
 #define MMPROFILE_MAX_META_BUFFER_SIZE 0x0

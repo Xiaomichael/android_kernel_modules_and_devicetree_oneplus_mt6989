@@ -188,16 +188,6 @@ static int wl2866d_init_voltage(struct i2c_client *i2c) {
                 dev_err(&i2c->dev, "init voltage failed!\n");
             }
         }
-    } else if (is_project(24626) || is_project(24780) || is_project(24781) || is_project(25677) || is_project(25680)) {
-        for (i = 0; i < ARRAY_SIZE(wl2866d_DVDD2_1200mV_on_config); i++) {
-            ret = wl2866d_i2c_write(wl2866d_i2c_client, wl2866d_DVDD2_1200mV_on_config[i].reg, wl2866d_DVDD2_1200mV_on_config[i].value);
-            pr_err("reg(0x02) = 0x%x, reg(0x03) = 0x%x, reg(0x04) = 0x%x, reg(0x05) = 0x%x, reg(0x06) = 0x%x, reg(0x0E) = 0x%x\n", \
-                    i2c_smbus_read_byte_data(wl2866d_i2c_client, 0x02), i2c_smbus_read_byte_data(wl2866d_i2c_client, 0x03), i2c_smbus_read_byte_data(wl2866d_i2c_client, 0x04), \
-                    i2c_smbus_read_byte_data(wl2866d_i2c_client, 0x05), i2c_smbus_read_byte_data(wl2866d_i2c_client, 0x06), i2c_smbus_read_byte_data(wl2866d_i2c_client, 0x0E));
-            if (ret < 0) {
-                dev_err(&i2c->dev, "init voltage failed!\n");
-            }
-        }
     }else {
         for (i = 0; i < ARRAY_SIZE(wl2866d_on_config); i++) {
             ret = wl2866d_i2c_write(wl2866d_i2c_client, wl2866d_on_config[i].reg, wl2866d_on_config[i].value);
@@ -221,8 +211,6 @@ static int wl2866d_enable_reg(struct regulator_dev *rdev, unsigned char flag, bo
 
     if (is_project(25664)) {
         ret = wl2866d_i2c_read(wl2866d_i2c_client, wl2866d_DVDD2_1050mV_on_config[VOL_ENABLE].reg, &reg_val);
-    } else if (is_project(24626) || is_project(24780) || is_project(24781) || is_project(25677) || is_project(25680)) {
-        ret = wl2866d_i2c_read(wl2866d_i2c_client, wl2866d_DVDD2_1200mV_on_config[VOL_ENABLE].reg, &reg_val);
     } else {
         ret = wl2866d_i2c_read(wl2866d_i2c_client, wl2866d_on_config[VOL_ENABLE].reg, &reg_val);
     }
@@ -249,8 +237,6 @@ static int wl2866d_enable_reg(struct regulator_dev *rdev, unsigned char flag, bo
 
     if (is_project(25664)) {
         ret = wl2866d_i2c_write(wl2866d_i2c_client, wl2866d_DVDD2_1050mV_on_config[VOL_ENABLE].reg, reg_val);
-    } else if (is_project(24626) || is_project(24780) || is_project(24781) || is_project(25677) || is_project(25680)) {
-        ret = wl2866d_i2c_write(wl2866d_i2c_client, wl2866d_DVDD2_1200mV_on_config[VOL_ENABLE].reg, reg_val);
     } else {
         ret = wl2866d_i2c_write(wl2866d_i2c_client, wl2866d_on_config[VOL_ENABLE].reg, reg_val);
 }
@@ -457,8 +443,8 @@ static wl2866d_dev_info_t dev_info[] = {
     {.wl2866d_slave_id = 0x28,
      .chip_id_reg = WL2866D_CHIP_ID_REG,
      .chip_id = 0x33,
-     .reg_desc = &sgm38121_regulators[0],
-     .reg_desc_size = ARRAY_SIZE(sgm38121_regulators),
+     .reg_desc = &wl2866d_regulators[0],
+     .reg_desc_size = ARRAY_SIZE(wl2866d_regulators),
     },
     /*Ivalid*/
     {0xff},

@@ -82,8 +82,6 @@ obj-y += drivers/gpu/drm/mediatek/
 
 obj-y += drivers/input/touchscreen/
 
-obj-y += drivers/gpu/drm/bias/
-
 obj-y += drivers/gpu/drm/panel/
 
 obj-y += drivers/gpu/mediatek/

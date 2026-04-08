@@ -182,6 +182,21 @@ struct STRUCT_CAM_CAL_SINGLE_2A_STRUCT {
 	unsigned char  S2aBitEn; //bit enable: 03 Bit0: AF Bit1: WB
 	unsigned char  S2aAfBitflagEn; //Bit: step 0(inf.), 1(marco), 2, 3, 4,5,6,7
 	unsigned short S2aAf[8];      //0x012c
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	int InfFlag;
+	int PhoneInfDac;
+	int InfSkinTemp;
+	int InfAmbientTemp;
+	int InfSensorTemp;
+	int InfGyroZ;
+	int MacroFlag;
+	int PhoneMacroDac;
+	int MacroSkinTemp;
+	int MacroAmbientTemp;
+	int MacroSensorTemp;
+	int MacroGyroZ;
+#endif /* OPLUS_FEATURE_CAMERA_COMMON */
+
 	struct STRUCT_CAM_CAL_PREGAIN_STRUCT S2aAwb; //0x012c
 	struct STRUCT_CAM_CAL_AF_STRUCT S2aAF_t;
 };

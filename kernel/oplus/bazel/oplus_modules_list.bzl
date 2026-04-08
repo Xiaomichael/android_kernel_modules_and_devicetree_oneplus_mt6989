@@ -25,6 +25,7 @@ COMMON_OPLUS_MODULES_LIST = [
     #"//vendor/oplus/kernel/boot:boot_mode",
     "//vendor/oplus/kernel/tp/hbp/hbp:oplus_hbp_core",
     "//vendor/oplus/kernel/tp/hbp/hbp:oplus_ft3683g",
+    "//vendor/oplus/kernel/tp/hbp/hbp:oplus_bsp_tp_hbp_syna_s3910",
     "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_ft3518",
     "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_ft3658u_spi",
     "//vendor/oplus/kernel/touchpanel/oplus_touchscreen_v2:oplus_bsp_tp_syna_common",
@@ -74,6 +75,7 @@ COMMON_OPLUS_MODULES_LIST = [
     "//vendor/oplus/kernel/camera:oplus_camera_dw9800s",
     "//vendor/oplus/kernel/camera:oplus_camera_afsem1217s",
     "//vendor/oplus/kernel/camera:oplus_camera_dw9800sw",
+    "//vendor/oplus/kernel/camera:oplus_camera_gt9779_24921",
     "//vendor/oplus/kernel/camera:oplus_camera_dw9800s_24891",
     "//vendor/oplus/kernel/camera:oplus_camera_dw9800s_24825",
     "//vendor/oplus/kernel/camera:oplus_camera_sy7806e_honda",
@@ -89,6 +91,7 @@ COMMON_OPLUS_MODULES_LIST = [
     "//vendor/oplus/kernel/cpu/thermal:horae_shell_temp",
     "//vendor/oplus/kernel/cpu/midas:oplus_bsp_midas",
     "//vendor/oplus/kernel/cpu/thermal:oplus_ipa_thermal",
+    "//vendor/oplus/kernel/cpu/thermal:oplus_thermal_vendor_hooks",
     "//vendor/oplus/secure/biometrics/fingerprints/bsp/uff/driver:oplus_bsp_uff_fp_driver",
     "//vendor/oplus/secure/common/bsp/drivers/oplus_secure_common:oplus_secure_common",
     "//vendor/oplus/kernel/secureguard/gki2.0/rootguard:oplus_secure_guard",
@@ -109,6 +112,7 @@ COMMON_OPLUS_MODULES_LIST = [
     "//vendor/oplus/kernel/mm:oplus_bsp_proactive_compact",
     "//vendor/oplus/kernel/mm:oplus_bsp_zsmalloc",
     "//vendor/oplus/kernel/mm:oplus_bsp_hybridswap_zram",
+    "//vendor/oplus/kernel/mm:oplus_bsp_zstdn_o",
     "//vendor/oplus/kernel/mm:oplus_bsp_lz4k",
     "//vendor/oplus/kernel/mm:oplus_bsp_memleak_detect_simple",
     "//vendor/oplus/kernel/mm:oplus_exit_mm_optimize",
@@ -149,6 +153,7 @@ COMMON_OPLUS_MODULES_LIST = [
     "//vendor/oplus/kernel/dfr:oplus_bsp_dfr_kp_freeze_detect",
     "//vendor/oplus/kernel/graphics:oplus_sync_fence",
     "//vendor/oplus/kernel/power/rpmh:oplus_rpmh_statics",
+    "//vendor/oplus/kernel/patch:oplus_patch",
 ]
 
 """

@@ -738,17 +738,20 @@
 		oplus,gauge_stuck_jump_support;
 		oplus,gauge_stuck_threshold = <15>;
 		oplus,gauge_stuck_time = <50>;
+
+		oplus_spec,batt_full_time = <300>;
 	};
 
 	oplus_monitor: oplus,monitor {
 		compatible = "oplus,monitor";
 		oplus,topic-update-interval = <60000>;
 
-		track,fast_chg_break_t_thd = <1000>;
+		track,fast_chg_break_t_thd = <2500>;
 		track,general_chg_break_t_thd = <200>;
 		track,voocphy_type = <TRACK_AP_DUAL_CP_VOOCPHY>;
 		track,wired_max_power = <67000>;
 		track,wired_fast_chg_scheme = <2>;
+		track,track_ver = <TRACK_VER_4_0>;
 	};
 
 	oplus_vooc: oplus,vooc {
@@ -790,6 +793,15 @@
 			oplus,ic_index = <0>;
 			oplus,dpdm_switch_ic = <&oplus_virtual_dpdm_switch>;
 		};
+	};
+
+	oplus_chg_quirks: oplus,chg_quirks {
+		compatible = "oplus,chg_quirks";
+	};
+	oplus_retention_charge: oplus,retention_charge {
+		compatible = "oplus,retention_charge";
+		oplus,topic-update-interval = <5000>;
+		oplus,support_retention_name = "oplus_retention_quirks";
 	};
 
 	oplus_cpa: oplus,cpa {

@@ -224,6 +224,8 @@ def define_oplus_chg_v2_module():
         "v2/oplus_chg_pps.c",
         "v2/oplus_batt_bal.c",
         "v2/oplus_chg_mutual.c",
+        "v2/oplus_reverse_chg.c",
+        "v2/oplus_chg_dual_cells_protection.c",
         "v2/gauge_ic/oplus_hal_bq27541.c",
         "v2/hal/oplus_chg_ic.c",
         "v2/hal/oplus_virtual_buck.c",
@@ -240,6 +242,7 @@ def define_oplus_chg_v2_module():
         "v2/hal/oplus_virtual_platufcs.c",
         "v2/hal/oplus_virtual_batt_bal.c",
         "v2/hal/oplus_virtual_level_shift.c",
+        "v2/hal/oplus_virtual_reverse_chg.c",
         "v2/mms/oplus_mms.c",
         "v2/mms/oplus_msg_filter.c",
         "v2/mms/oplus_mms_gauge.c",
@@ -430,6 +433,11 @@ def define_oplus_chg_v2_module():
                 "v2/ufcs_ic/oplus_hal_nu2112a_slave.c"
             ],
         },
+        "CONFIG_OPLUS_UFCS_MASTER_NU2118A": {
+            True: [
+                "v2/ufcs_ic/oplus_hal_nu2118a.c"
+            ],
+        },
         "CONFIG_OPLUS_CHG_MOS_CTRL": {
             True: [
                 "v2/switching_ic/oplus_mos_ctrl.c"
@@ -512,6 +520,24 @@ def define_oplus_chg_v2_module():
         "CONFIG_OPLUS_SGM41515_CHARGER": {
             True: [
                 "v2/charger_ic/oplus_hal_sgm41515.c"
+            ],
+        },
+        "CONFIG_OPLUS_CHG_RECOVERY": {
+            True: [
+                "v2/recovery/oplus_chg_recovery.c",
+            ],
+        },
+        "CONFIG_OPLUS_CHG_STATE_KEEP": {
+            True: [
+                "v2/recovery/state_keep/state_keep.c",
+                "v2/recovery/state_keep/detection/wired_disconnect_detection.c",
+                "v2/recovery/state_keep/detection/vooc_disconnect_detection.c",
+                "v2/monitor/track/oplus_track_state_keep.c",
+            ],
+        },
+        "CONFIG_OPLUS_DEBUG_AUTH": {
+            True: [
+                "v2/debug/oplus_debug_auth.c",
             ],
         },
     }

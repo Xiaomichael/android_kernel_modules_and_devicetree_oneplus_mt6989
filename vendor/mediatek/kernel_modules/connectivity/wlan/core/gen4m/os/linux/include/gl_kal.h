@@ -129,6 +129,8 @@ extern u_int8_t wlan_perf_monitor_force_enable;
 
 #define TX_STREAM_ACCELERATE_FLAG (0x3)
 
+#define TX_STREAM_ACCELERATE_FLAG (0x3)
+
 #define PERF_MON_INIT_BIT       (0)
 #define PERF_MON_DISABLE_BIT    (1)
 #define PERF_MON_STOP_BIT       (2)

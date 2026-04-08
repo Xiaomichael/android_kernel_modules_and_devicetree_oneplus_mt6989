@@ -809,7 +809,7 @@ int bt_dev_dbg_init(void)
 #endif
 
 	// initialize debug function struct
-	g_bt_dbg_st.rt_thd_enable = FALSE;
+	g_bt_dbg_st.rt_thd_enable = TRUE;
 	g_bt_dbg_st.rx_buf_ctrl = TRUE;
 
 	g_bt_dbg_entry = proc_create(BT_DBG_PROCNAME, 0664, NULL, &bt_dbg_fops);

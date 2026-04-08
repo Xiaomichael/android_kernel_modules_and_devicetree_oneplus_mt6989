@@ -477,7 +477,7 @@ void mtk_vcodec_dump_ctx_list(struct mtk_vcodec_dev *dev, unsigned int debug_lev
 }
 EXPORT_SYMBOL_GPL(mtk_vcodec_dump_ctx_list);
 
-static void mtk_vcodec_set_uclamp(bool enable, int ctx_id, int pid, int min_uclamp)
+static void mtk_vcodec_set_uclamp(bool enable, int ctx_id, int pid)
 {
 	struct task_struct *p, *task_child;
 	struct sched_attr attr = {};
@@ -492,7 +492,7 @@ static void mtk_vcodec_set_uclamp(bool enable, int ctx_id, int pid, int min_ucla
 	attr.sched_util_max = -1;
 
 	if(enable)
-		attr.sched_util_min = min_uclamp;
+		attr.sched_util_min = 370;
 	else
 		attr.sched_util_min = -1;
 
@@ -538,7 +538,7 @@ void mtk_vcodec_set_cpu_hint(struct mtk_vcodec_dev *dev, bool enable,
 			}
 		}
 		if (dev->cpu_hint_mode & (1 << MTK_UCLAMP_MODE)) // uclamp mode
-			mtk_vcodec_set_uclamp(enable, ctx_id, cpu_caller_pid, dev->vdec_dvfs_params.cpu_uclamp_min);
+			mtk_vcodec_set_uclamp(enable, ctx_id, cpu_caller_pid);
 
 		dev->cpu_hint_ref_cnt++;
 		mtk_v4l2_debug(0, " [VDVFS][%d][%s] enable CPU hint by %s (ref cnt %d, mode %d)",
@@ -554,7 +554,7 @@ void mtk_vcodec_set_cpu_hint(struct mtk_vcodec_dev *dev, bool enable,
 			}
 		}
 		if (dev->cpu_hint_mode & (1 << MTK_UCLAMP_MODE))
-			mtk_vcodec_set_uclamp(enable, ctx_id, cpu_caller_pid, -1);
+			mtk_vcodec_set_uclamp(enable, ctx_id, cpu_caller_pid);
 
 		mtk_v4l2_debug(0, "[VDVFS][%d][%s] disable CPU hint by %s (ref cnt %d mode %d)",
 			ctx_id, (type == MTK_INST_DECODER) ? "VDEC" : "VENC", debug_str,

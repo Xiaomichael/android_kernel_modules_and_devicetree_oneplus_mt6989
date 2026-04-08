@@ -222,6 +222,19 @@ enum DBG_ARG_IDX {
 static u32 RegAddr = 0;
 static u32 RegData = 0;
 struct multi_reg_platform_data *g_pdata = NULL;
+static unsigned int g_detected_product_id = 0;
+
+static void sgm38120_hw_init(void)
+{
+    regmap_write(g_pdata->regmap, SGM38120_ENABLE, 0x80);
+    regmap_write(g_pdata->regmap, SGM38120_LDO1VOUT, 0x3E);
+    regmap_write(g_pdata->regmap, SGM38120_LDO2VOUT, 0x57);
+    regmap_write(g_pdata->regmap, SGM38120_LDO3VOUT, 0x57);
+    regmap_write(g_pdata->regmap, SGM38120_LDO4VOUT, 0xA2);
+    regmap_write(g_pdata->regmap, SGM38120_LDO5VOUT, 0xA2);
+    regmap_write(g_pdata->regmap, SGM38120_LDO6VOUT, 0x25);
+    regmap_write(g_pdata->regmap, SGM38120_LDO7VOUT, 0xA2);
+}
 
 static ssize_t debug_i2c_ops_show(struct device *dev,
                 struct device_attribute *attr, char *buf)
@@ -378,6 +391,8 @@ static int multi_reg_i2c_probe(struct i2c_client *i2c,
             continue;
         }
         if (data == dev_info[index].product_id) {
+            g_detected_product_id = data;
+            dev_info(&i2c->dev, "Detected product ID: 0x%02X\n", g_detected_product_id);
             break;
         }
         index += 1;
@@ -408,6 +423,10 @@ static int multi_reg_i2c_probe(struct i2c_client *i2c,
     }
     g_pdata = pdata;
     ret = device_create_file(&i2c->dev, &dev_attr_debug_i2c_ops);
+    if (g_detected_product_id == 0xd9) {
+        printk("sgm38120_hw_init enter\n");
+        sgm38120_hw_init();
+    }
     dev_info(&i2c->dev, "regulator probe end\n");
     return 0;
 }

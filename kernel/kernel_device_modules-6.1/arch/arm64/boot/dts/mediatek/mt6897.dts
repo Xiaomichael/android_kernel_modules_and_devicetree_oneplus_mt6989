@@ -10762,10 +10762,8 @@
 			interconnect-num = <4>;
 			os-allow-bw = <1>;
 			vdec-max-w = <4096>;
-			vdec-cpu-hint-mode = <1>; /* uclamp mode */
-			cpu-uclamp-min = <512>;
 			bandwidth-table = // avg occupy measure from (4K60,416MHz) scale to 218MHz
-				<4 0 2700>,
+				<4 0 1900>,
 				<5 0 0>,
 				<46 1 0>,
 				<47 1 0>;

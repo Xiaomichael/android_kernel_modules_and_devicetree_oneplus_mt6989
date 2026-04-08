@@ -588,7 +588,8 @@ void iris_gmd_reg_set_i7p(void)
 		frc_setting->mv_hres + (frc_setting->mv_vres << 16), 0);
 	/* it is only aimed at Genshin Impact and Game for Peace*/
 	if (pcfg->memc_info.memc_mode == MEMC_SINGLE_GAME_ENABLE &&
-		(pcfg->memc_info.memc_app == 3 || pcfg->memc_info.memc_app == 0)) {
+		(pcfg->memc_info.memc_app == 3 || pcfg->memc_info.memc_app == 0
+		|| pcfg->memc_info.memc_app == 119)) {
 		iris_frc_reg_add_i7p(IRIS_GMD_ADDR + GMD_START_WIN, 0x00320000, 0);
 		iris_frc_reg_add_i7p(IRIS_GMD_ADDR + GMD_STOP_WIN, ((frc_setting->mv_vres - 50) << 16) +
 			(frc_setting->mv_hres), 0);
@@ -1017,8 +1018,8 @@ static void iris_dtg_setting_update(void *handle, bool lock, bool i2c_path)
 			cmd[idx++] = 0x183;
 			cmd[idx++] = IRIS_DTG_ADDR + DTG_SW_FIX_TE_PERIOD;
 			cmd[idx++] = 0xEBD40;
-			//cmd[idx++] = IRIS_DTG_ADDR + DTG_OVS_DLY_FRC;
-			//cmd[idx++] = ovs_dly_frc;
+			cmd[idx++] = IRIS_DTG_ADDR + DTG_OVS_DLY;
+			cmd[idx++] = 0x41;
 			//cmd[idx++] = IRIS_DTG_ADDR + DTG_REG_29;
 			//cmd[idx++] = sw_n2m;
 			cmd[idx++] = IRIS_DTG_ADDR + DTG_UPDATE;
@@ -1055,8 +1056,8 @@ static void iris_dtg_setting_update(void *handle, bool lock, bool i2c_path)
 			cmd[idx++] = payload[23];//0x1DF;
 			cmd[idx++] = IRIS_DTG_ADDR + DTG_SW_FIX_TE_PERIOD;
 			cmd[idx++] = payload[25];//0x159378;
-			//cmd[idx++] = IRIS_DTG_ADDR + DTG_OVS_DLY_FRC;
-			//cmd[idx++] = ovs_dly_frc;
+			cmd[idx++] = IRIS_DTG_ADDR + DTG_OVS_DLY;
+			cmd[idx++] = 0x31;
 			//cmd[idx++] = IRIS_DTG_ADDR + DTG_REG_29;
 			//cmd[idx++] = sw_n2m;
 			cmd[idx++] = IRIS_DTG_ADDR + DTG_UPDATE;
@@ -1169,6 +1170,8 @@ static void iris_dtg_setting_update(void *handle, bool lock, bool i2c_path)
 			cmd[idx++] = payload[23];//0x1DF;
 			cmd[idx++] = IRIS_DTG_ADDR + DTG_SW_FIX_TE_PERIOD;
 			cmd[idx++] = payload[25];//0x159378;
+			cmd[idx++] = IRIS_DTG_ADDR + DTG_OVS_DLY;
+			cmd[idx++] = 0x41;
 			//cmd[idx++] = IRIS_DTG_ADDR + DTG_REG_23;
 			//cmd[idx++] = sw_fix_te_period;
 			//cmd[idx++] = IRIS_DTG_ADDR + DTG_OVS_DLY_FRC;
@@ -1974,7 +1977,7 @@ void iris_memc_ctrl_pt_post_i7p(void)
 	}
 
 	if ((pcfg->rx_mode == IRIS_VIDEO_MODE) && (pcfg->tx_mode == IRIS_VIDEO_MODE)) {
-		iris_ovs_dly_change(false);
+		//iris_ovs_dly_change(false);
 		iris_pwil0_efifo_enable_i7p(false);
 	}
 

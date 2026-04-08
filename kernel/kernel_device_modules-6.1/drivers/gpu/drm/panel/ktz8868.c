@@ -108,14 +108,13 @@ int ktz8868_brightness_enable(bool enable)
 	if (enable) {
 		if (!ktz8868_enable_flag) {
 			ktz8868_write_byte(0x02, 0x53);
-			ktz8868_write_byte(0x03, 0xEB);
+			ktz8868_write_byte(0x03, 0xCD);
 			ktz8868_write_byte(0x11, 0x76);
 			ktz8868_write_byte(0x15, 0xF8);
-			ktz8868_write_byte(0x08, 0xFF);
 			ktz8868_enable_flag = true;
 		}
 	} else {
-		ktz8868_write_byte(0x08, 0x00);
+		ktz8868_write_byte(0x01, 0x00);
 		ktz8868_enable_flag = false;
 	}
 	pr_info("[KTZ8868]%s: enable=%d flag:%d\n", __func__, enable, ktz8868_enable_flag);
@@ -135,25 +134,23 @@ int ktz8868_set_brightness(unsigned int bl_lvl)
 
 	if (bl_lvl > 0) {
 		if(ktz8868_set_bl_flag == false) {
-			ktz8868_brightness_enable(true);
+			ktz8868_write_byte(0x08, 0xFF);
 		}
 		ktz8868_write_byte(0x04, bl_lvl & 0x07);
 		ktz8868_write_byte(0x05, (bl_lvl >> 3) & 0xFF);
 		if (ktz8868_set_bl_flag == false) {
-			mdelay(15);
+			usleep_range(15000, 15100);
 			ktz8868_write_byte(0x01, 0x01);
 			ktz8868_set_bl_flag = true;
 			pr_info("[KTZ8868]%s: flag=%d\n", __func__, ktz8868_set_bl_flag);
 		}
-	}
-
-	if (bl_lvl == 0) {
-		ktz8868_write_byte(0x01, 0x00);
-		mdelay(9);
+	} else if (bl_lvl == 0) {
+		/* Current ramp 256ms  */
+		ktz8868_write_byte(0x03, 0xCD);
 		ktz8868_write_byte(0x04, 0x00);
 		ktz8868_write_byte(0x05, 0x00);
+
 		if(ktz8868_set_bl_flag == true) {
-			ktz8868_brightness_enable(false);
 			ktz8868_set_bl_flag = false;
 			pr_info("[KTZ8868]%s: flag=%d\n", __func__, ktz8868_set_bl_flag);
 		}
@@ -171,7 +168,7 @@ int ktz8868_set_lcd_bias_by_gpio(bool enable)
 	pr_info("[KTZ8868]%s: ++\n", __func__);
 
 	if (enable) {
-		mdelay(1);
+		usleep_range(1000, 1100);
 		/* enable bl bais enp */
 		if (gpio_is_valid(ktz8868_bais_enp_gpio_num)) {
 			rc = gpio_direction_output(ktz8868_bais_enp_gpio_num, true);
@@ -180,7 +177,7 @@ int ktz8868_set_lcd_bias_by_gpio(bool enable)
 				gpio_free(ktz8868_bais_enp_gpio_num);
 			}
 		}
-		mdelay(8);
+		usleep_range(8000, 8100);
 		/* enable bl bais enn */
 		if (gpio_is_valid(ktz8868_bais_enn_gpio_num)) {
 			rc = gpio_direction_output(ktz8868_bais_enn_gpio_num, true);
@@ -189,9 +186,9 @@ int ktz8868_set_lcd_bias_by_gpio(bool enable)
 				gpio_free(ktz8868_bais_enn_gpio_num);
 			}
 		}
-		mdelay(10);
+		usleep_range(10000, 10100);
 	} else {
-		mdelay(2);
+		usleep_range(2000, 2100);
 		/* disable bl bais enn */
 		if (gpio_is_valid(ktz8868_bais_enn_gpio_num)) {
 			rc = gpio_direction_output(ktz8868_bais_enn_gpio_num, false);
@@ -200,7 +197,7 @@ int ktz8868_set_lcd_bias_by_gpio(bool enable)
 				gpio_free(ktz8868_bais_enn_gpio_num);
 			}
 		}
-		mdelay(8);
+		usleep_range(8000, 8100);
 		/* disable bl bais enp */
 		if (gpio_is_valid(ktz8868_bais_enp_gpio_num)) {
 			rc = gpio_direction_output(ktz8868_bais_enp_gpio_num, false);
@@ -209,7 +206,7 @@ int ktz8868_set_lcd_bias_by_gpio(bool enable)
 				gpio_free(ktz8868_bais_enp_gpio_num);
 			}
 		}
-		mdelay(10);
+		usleep_range(10000, 10100);
 	}
 	pr_info("[KTZ8868]%s: enable=%d --\n", __func__, enable);
 
@@ -229,7 +226,7 @@ int ktz8868_set_lcd_bias_by_reg(bool enable)
 	} else {
 		pr_info("[KTZ8868] disable lcd_enable_bias by reg\n");
 		ktz8868_write_byte(0x09, 0x9C);/* Disable OUTN */
-		mdelay(5);
+		usleep_range(5000, 5100);
 		ktz8868_write_byte(0x09, 0x98);/* Disable OUTP */
 	}
 	return 0;
@@ -252,7 +249,7 @@ int ktz8868_hw_en(bool enable)
 			pr_err("[KTZ8868]%s:set KTZ8868_HW_EN enable=%d succ\n", __func__, enable);
 		}
 		if (value) {
-			mdelay(1);
+			usleep_range(1000, 1100);
 			ktz8868_write_byte(0x0C, 0x28);/* LCD_BOOST_CFG */
 			ktz8868_write_byte(0x0D, 0x1E);/* OUTP_CFG，OUTP = 6.0V */
 			ktz8868_write_byte(0x0E, 0x1E);/* OUTN_CFG，OUTN = -6.0V */

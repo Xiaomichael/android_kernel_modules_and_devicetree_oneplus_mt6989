@@ -361,6 +361,8 @@ static unsigned int ged_dvfs_low_step_size_query(void)
 static unsigned int ged_dvfs_ultra_high_step_size_query(void)
 {
 	int gpu_freq = ged_get_cur_freq();
+	if (dvfs_step_mode != DEFAULT_DVFS_STEP_MODE)
+		return (dvfs_step_mode & 0xff);
 
 	if (g_ultra_step_size_by_platform[0]) {
 		if (gpu_freq < g_step_size_freq_th[1])
@@ -381,6 +383,9 @@ static unsigned int ged_dvfs_ultra_high_step_size_query(void)
 
 static unsigned int ged_dvfs_ultra_low_step_size_query(void)
 {
+	if (dvfs_step_mode != DEFAULT_DVFS_STEP_MODE)
+		return (dvfs_step_mode & 0xff00) >> 8;
+
 	if (g_step_size_by_platform[0])
 		return ged_dvfs_low_step_size_query();
 

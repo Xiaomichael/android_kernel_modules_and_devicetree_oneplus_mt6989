@@ -578,7 +578,8 @@ int panel_id_read(struct drm_crtc *crtc)
 		m_id = para[0] & 0xFF;
 	}
 
-	if (!strcmp(panel_name, "panel_ae037_p_3_a0026_dsi_vdo") || !strcmp(panel_name, "oplus24780_nt37706a_fhdp_dsi_vdo_144hz_dphy_boe")) {
+	if (!strcmp(panel_name, "panel_ae037_p_3_a0026_dsi_vdo") || !strcmp(panel_name, "oplus24780_nt37706a_fhdp_dsi_vdo_144hz_dphy_boe")
+		|| !strcmp(panel_name, "oplus25711_nt37706a_fhdp_dsi_vdo_144hz_dphy_boe")) {
 		oplus_ddic_dsi_send_cmd(5, switch_default_page_vdo);
 		oplus_mtk_read_ddic_v2(0xDA, 5, para);
 		m_da = para[0] & 0xFF;
@@ -713,7 +714,9 @@ int panel_serial_number_read(struct drm_crtc *crtc, char cmd, int num)
 			|| !strcmp(panel_name, "ac234_p_3_a0004_cmd_panel")) {
 			panel_serial_info.reg_index = 0;
 			panel_serial_info.year      = (para[panel_serial_info.reg_index] & 0xF0) >> 4;
-		} else if (!strcmp(panel_name, "ac304_p_3_a0027_vdo_panel")) {
+		} else if (!strcmp(panel_name, "ac304_p_3_a0027_vdo_panel")
+			|| !strcmp(panel_name, "ac382_p_3_a0034_vdo_panel")
+			|| !strcmp(panel_name, "ac382_p_7_a0034_vdo_panel")) {
 			panel_serial_info.reg_index = 0;
 			panel_serial_info.year      = ((para[panel_serial_info.reg_index] & 0xF0) >> 4) + 9;
 		} else {

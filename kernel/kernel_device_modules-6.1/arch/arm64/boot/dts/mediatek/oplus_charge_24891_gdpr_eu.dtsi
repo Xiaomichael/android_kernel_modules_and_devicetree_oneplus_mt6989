@@ -369,6 +369,7 @@
 					OPLUS_IC_FUNC_CP_WATCHDOG_ENABLE
 					OPLUS_IC_FUNC_CP_GET_IIN_MAX
 					OPLUS_IC_FUNC_CP_WATCHDOG_RESET
+					OPLUS_IC_FUNC_CP_SET_SSTIMEOUT_UCP_ENABLE
 				>;
 				virqs = <
 					OPLUS_IC_VIRQ_ERR
@@ -572,6 +573,9 @@
 		oplus,topic-update-interval = <10000>;
 		oplus,support_subboard_ntc;
 		oplus,sub_btb_curr_limit = <3000>; /* Online current limiting, provided by hardware engineer */
+		oplus,fcl_support;
+		oplus,fcl_index = <0>;
+		oplus,vb_offset = <30>;
 
 		oplus_virtual_gauge: oplus,virtual_gauge {
 			compatible = "oplus,virtual_gauge";
@@ -700,6 +704,8 @@
 		oplus,smooth_switch;
 		oplus,reserve_chg_soc = <2>;
 		oplus,eco_region_list = /bits/ 8 <0x44>;
+
+		oplus_spec,batt_full_time = <300>;
 	};
 
 	oplus_monitor: oplus,monitor {

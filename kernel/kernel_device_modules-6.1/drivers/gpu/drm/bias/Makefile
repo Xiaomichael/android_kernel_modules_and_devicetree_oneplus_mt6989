@@ -1,1 +1,0 @@
-obj-$(CONFIG_DRM_BIAS_AW37501) += oplus23661_aw37501_bias.o
