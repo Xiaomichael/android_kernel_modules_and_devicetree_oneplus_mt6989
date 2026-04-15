@@ -41,3 +41,8 @@ __traceiter_android_vh_cpu_cgroup_css_alloc_early, 80276991
 schedtune_task_boost, 80276991
 rtnl_kfree_skbs,80378870
 __tracepoint_android_vh_throttle_direct_reclaim_bypass
+css_task_iter_start, 80276991
+css_task_iter_next, 80276991
+css_task_iter_end, 80276991
+__traceiter_android_vh_reweight_entity, 80276991
+__tracepoint_android_vh_reweight_entity, 80276991

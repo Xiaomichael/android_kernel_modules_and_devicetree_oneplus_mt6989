@@ -1078,6 +1078,10 @@ static void mt6375_chg_attach_pre_process(struct mt6375_chg_data *ddata,
 {
 #ifdef CONFIG_OPLUS_HVDCP_SUPPORT
 	int ret;
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+	struct tcpc_device *tcpc = tcpc_dev_get_by_name("type_c_port0");
+	bool vooc_status = false;
+#endif
 #endif
 	struct mt6375_chg_platform_data *pdata = dev_get_platdata(ddata->dev);
 	int i = 0, idx = ONLINE_GET_IDX(attach);
@@ -1095,12 +1099,24 @@ static void mt6375_chg_attach_pre_process(struct mt6375_chg_data *ddata,
 #endif
 	attach = ONLINE_GET_ATTACH(attach);
 #ifdef CONFIG_OPLUS_HVDCP_SUPPORT
-	if (attach == 0)
-		ret = mt6375_reset_hvdcp_reg(ddata, false);
-	else
-		ret = mt6375_reset_hvdcp_reg(ddata, true);
-	if (ret < 0)
-		mt_dbg(ddata->dev, "%s: fail to write hvdcp_device_type\n", __func__);
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+	if (tcpc == NULL) {
+		pr_info("%s: get type_c_port0 fail\n", __func__);
+	} else {
+		vooc_status = tcpci_get_vooc_status(tcpc);
+	}
+	if (!vooc_status) {
+#endif
+		if (attach == 0)
+			ret = mt6375_reset_hvdcp_reg(ddata, false);
+		else
+			ret = mt6375_reset_hvdcp_reg(ddata, true);
+		if (ret < 0)
+			mt_dbg(ddata->dev, "%s: fail to write hvdcp_device_type\n", __func__);
+		mt_dbg(ddata->dev, "%s:it's not vooc!!!\n", __func__);
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+	}
+#endif
 #endif
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	/* if attach trigger is not match, ignore it */

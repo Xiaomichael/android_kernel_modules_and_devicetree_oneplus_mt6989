@@ -39,6 +39,10 @@
 #include "gl_csi.h"
 #endif
 
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+#include "oplus_sap_accelerate.h"
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
+
 /*******************************************************************************
  *                              C O N S T A N T S
  *******************************************************************************
@@ -1844,6 +1848,10 @@ uint32_t nicRxProcessPacketToHost(struct ADAPTER *prAdapter,
 	prBssInfo = GET_BSS_INFO_BY_INDEX(prAdapter, ucBssIndex);
 	if (!prBssInfo)
 		goto end;
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+    oplus_nic_rx_mark_prior_pkt(prRetSwRfb);
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
 
 #if ARP_MONITER_ENABLE
 	if (IS_BSS_INFO_IN_AIS(prBssInfo))

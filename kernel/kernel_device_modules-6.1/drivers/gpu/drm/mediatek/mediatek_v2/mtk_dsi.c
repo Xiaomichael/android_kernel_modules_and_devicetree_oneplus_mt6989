@@ -388,6 +388,10 @@ extern int oplus_pcp_lock_clear(void);
 	 (type == MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM) ||                    \
 	 (type == MIPI_DSI_DCS_READ))
 
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+static int power_status = 0;
+/* #endif */
+
 struct phy;
 struct mtk_dsi;
 
@@ -4543,6 +4547,10 @@ static void mtk_dsi_encoder_disable(struct drm_encoder *encoder)
 	int data = MTK_DISP_BLANK_POWERDOWN;
 	struct mtk_drm_private *priv = crtc->dev->dev_private;
 	unsigned int async_ctrl_flag = 0;
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+	struct mtk_crtc_state *mtk_state = (crtc && crtc->state) ?
+		to_mtk_crtc_state(crtc->state) : NULL;
+/* #endif */
 
 	//Temp workaround for MT6855 suspend/resume issue
 	switch (priv->data->mmsys_id) {
@@ -4565,6 +4573,20 @@ static void mtk_dsi_encoder_disable(struct drm_encoder *encoder)
 			(unsigned long)crtc, index);
 
 	DDPINFO("%s\n", __func__);
+
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+	if (!mtk_state) {
+		OFP_ERR("Invalid mtk_state param\n");
+		return;
+	} else {
+		power_status = mtk_state->prop_val[CRTC_PROP_POWER_STATUS];
+		if (power_status == OPLUS_DOZE || power_status == OPLUS_DOZE_SUSPEND) {
+			DDPINFO("func:%s, line:%d, power_status:%d\n", __func__, __LINE__, power_status);
+			lcdinfo_notify(OPLUS_POWER_STATUS, &power_status);
+		}
+	}
+/* #endif */
+
 	mtk_drm_idlemgr_kick(__func__, crtc, 0);
 
 	CRTC_MMP_MARK(index, dsi_suspend, 1, 0);
@@ -4667,6 +4689,10 @@ static void mtk_dsi_encoder_enable(struct drm_encoder *encoder)
 	int index = drm_crtc_index(crtc);
 	int data = MTK_DISP_BLANK_UNBLANK;
 	unsigned int async_ctrl_flag = 0;
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+	struct mtk_crtc_state *mtk_state = (crtc && crtc->state) ?
+		to_mtk_crtc_state(crtc->state) : NULL;
+/* #endif */
 
 	mtk_crtc = to_mtk_crtc(crtc);
 	if (!mtk_crtc || !mtk_crtc->panel_ext || !mtk_crtc->panel_ext->params) {
@@ -4677,6 +4703,19 @@ static void mtk_dsi_encoder_enable(struct drm_encoder *encoder)
 			(unsigned long)crtc, index);
 
 	DDPINFO("%s\n", __func__);
+
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+	if (!mtk_state) {
+		OFP_ERR("Invalid mtk_state param\n");
+		return;
+	} else {
+		power_status = mtk_state->prop_val[CRTC_PROP_POWER_STATUS];
+		if (power_status == OPLUS_DOZE || power_status == OPLUS_DOZE_SUSPEND) {
+			DDPINFO("func:%s, line:%d, power_status:%d\n", __func__, __LINE__, power_status);
+			lcdinfo_notify(OPLUS_POWER_STATUS, &power_status);
+		}
+	}
+/* #endif */
 
 #ifndef OPLUS_FEATURE_DISPLAY
 	if (unlikely(index < 0 && index >= MAX_CRTC)) {
@@ -5887,10 +5926,15 @@ unsigned int mtk_dsi_mode_change_index(struct mtk_dsi *dsi,
 		}
 
 		if (cur_panel_params->dyn.vfp !=
-			adjust_panel_params->dyn.vfp)
+			adjust_panel_params->dyn.vfp) {
 			mode_chg_index |= MODE_DSI_VFP;
-		else if (drm_mode_vfp(adjust_mode) != drm_mode_vfp(old_mode))
+			if (doze_enabled_flag && oplus_ofp_video_mode_30hz_aod_is_enabled()) {
+				mode_chg_index |= MODE_DSI_HFP;
+				DDPMSG("dyn mode_chg_index flag %d\n", mode_chg_index);
+			}
+		} else if (drm_mode_vfp(adjust_mode) != drm_mode_vfp(old_mode)) {
 			mode_chg_index |= MODE_DSI_VFP;
+		}
 
 		if (cur_panel_params->dyn.hfp !=
 			adjust_panel_params->dyn.hfp)

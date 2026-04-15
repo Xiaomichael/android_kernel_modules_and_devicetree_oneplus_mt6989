@@ -43,6 +43,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/devinfo.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
@@ -53,7 +54,8 @@
 #define MAX_ID_COUNT     5
 #define SUPPORT_MIXED_CHIPSET     1
 #define NOT_SUPPORT_MIXED_CHIPSET     0
-#define SUPPORT_CHIPSET_LIST     "SN100T|SN110T|SN220T|SN220U|SN220P|SN220E|PN560"
+#define SUPPORT_CHIPSET_LIST     "SN100T|SN110T|SN220T|SN220U|SN220P|SN220E|PN560|PN560DZ"
+#define INVALID_ID    -1
 
 struct id_entry {
     u32 key;
@@ -353,7 +355,9 @@ static const struct file_operations nfc_i2c_dev_fops = {
 #endif
 };
 
-static int read_id_properties(struct device_node *np, u32 id_count, struct id_entry *id_entries)
+
+
+static int nxp_nfc_read_id_properties(struct device_node *np, u32 id_count, struct id_entry *id_entries)
 {
     int err;
     u32 i;
@@ -374,29 +378,17 @@ static int read_id_properties(struct device_node *np, u32 id_count, struct id_en
           return err;
         }
     }
-    pr_info("read_id_properties success");
+    pr_info("nxp_nfc_read_id_properties success");
     return 0;
 }
 
-static int get_gpio_value(struct device_node *np, int *gpio_value)
-{
-    int gpio_num = of_get_named_gpio(np, "id-gpio", 0);
-
-    if (!gpio_is_valid(gpio_num)) {
-        pr_err("id-gpio is not valid\n");
-        return -EINVAL;
-    }
-
-    *gpio_value = gpio_get_value(gpio_num);
-    pr_info("%s, id gpio value is %d", __func__, *gpio_value);
-    return 0;
-}
-
-static int checkNfcChip(struct device *dev)
+static int check_nfc_chip(struct device *dev)
 {
     struct device_node *np = NULL;
     u32 id_count;
-    int i, gpio_value, err;
+    int i;
+    int gpio_value;
+    int err;
     bool found = false;
     struct id_entry *id_entries = NULL;
     uint32_t mixed_chipset;
@@ -446,15 +438,40 @@ static int checkNfcChip(struct device *dev)
                 return -ENOMEM;
             }
 
-            err = read_id_properties(np, id_count,id_entries);
+            err = nxp_nfc_read_id_properties(np, id_count, id_entries);
             if (err)
             {
-                pr_err("%s error: read_id_properties failed", __func__);
+                pr_err("%s error: nxp_nfc_read_id_properties failed", __func__);
                 kfree(id_entries);
                 return err;
             }
 
-            err = get_gpio_value(np, &gpio_value);
+            pr_info("id_count: %u\n", id_count);
+            switch (id_count) {
+            case 2:
+                fallthrough;
+            case 3:
+                gpio_value = get_nfc_id();
+                pr_info("%s, final gpio_value = %d\n", __func__, gpio_value);
+                if (gpio_value == INVALID_ID) {
+                    for (int delay = 0; delay < 6; delay++) {
+                        msleep(500);
+                        gpio_value = get_nfc_id();
+                        if(gpio_value != INVALID_ID) {
+                            pr_info("retry times = %d\n", delay);
+                            break;
+                        }
+                    }
+                    if(gpio_value == INVALID_ID) {
+                        err = -EINVAL;
+                    }
+                }
+                break;
+            default:
+                pr_err("Unexpected id_count value: %u\n", id_count);
+                break;
+            }
+
             if (err)
             {
                 pr_err("%s error: get_gpio_value failed", __func__);
@@ -517,7 +534,7 @@ int nfc_i2c_dev_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct platform_configs *nfc_configs = NULL;
 	struct platform_gpio *nfc_gpio = NULL;
 	pr_debug("%s: enter\n", __func__);
-	ret = checkNfcChip(&client->dev);
+	ret = check_nfc_chip(&client->dev);
 	if (ret) {
 		pr_err("NxpDrv: %s: failed to checkNfcChip\n", __func__);
 		struct pinctrl * pinctrl = NULL;

@@ -23,6 +23,9 @@
 #ifdef OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT
 #include "oplus_display_onscreenfingerprint.h"
 #endif /* OPLUS_FEATURE_DISPLAY_ONSCREENFINGERPRINT */
+#if defined(CONFIG_PXLW_IRIS)
+#include "dsi_iris_api.h"
+#endif
 
 extern int ffl_backlight_backup;
 extern unsigned int oplus_display_brightness;
@@ -488,9 +491,18 @@ int  mtk_drm_setbacklight_without_lock(struct drm_crtc *crtc, unsigned int level
 	cb_data->crtc = crtc;
 	cb_data->cmdq_handle = cmdq_handle;
 
-	if (cmdq_pkt_flush_threaded(cmdq_handle, oplus_bl_cmdq_cb, cb_data) < 0) {
-		DDPPR_ERR("failed to flush oplus_bl_cmdq_cb\n");
-		ret = -EINVAL;
+#if defined(CONFIG_PXLW_IRIS)
+	if (iris_is_chip_supported() && iris_is_pt_mode(false)) {
+		cmdq_pkt_flush(cb_data->cmdq_handle);
+		cmdq_pkt_destroy(cb_data->cmdq_handle);
+		kfree(cb_data);
+	} else
+#endif
+	{
+		if (cmdq_pkt_flush_threaded(cmdq_handle, oplus_bl_cmdq_cb, cb_data) < 0) {
+			DDPPR_ERR("failed to flush oplus_bl_cmdq_cb\n");
+			ret = -EINVAL;
+		}
 	}
 
 	CRTC_MMP_EVENT_END(index, backlight, (unsigned long)crtc,

@@ -9,6 +9,13 @@
 /*********** PART0: Head files ***********/
 #include <linux/poll.h>
 #include <linux/timekeeping.h>
+#include <linux/of_gpio.h>
+#include <linux/of_platform.h>
+#include <linux/slab.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/devinfo.h>
 #include "nfc_common.h"
 /*********** PART1: Define Area ***********/
 #define NFC_DEVICE               "tms,nfc"
@@ -41,6 +48,7 @@ enum nfc_ioctl_request_table {
     NFC_DLD_FLUSH       = 14,
 };
 
+
 /*********** PART3: Function or variables for other files ***********/
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,3,0)
 int nfc_device_probe(struct i2c_client *client, const struct i2c_device_id *id);
@@ -54,4 +62,5 @@ void nfc_device_remove(struct i2c_client *client);
 #endif
 int nfc_device_suspend(struct device *device);
 int nfc_device_resume(struct device *device);
+extern int get_nfc_id(void);
 #endif /* _TMS_NFC_THN31_H_ */

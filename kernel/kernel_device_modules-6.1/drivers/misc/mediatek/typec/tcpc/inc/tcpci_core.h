@@ -223,6 +223,13 @@ struct tcpc_ops {
 	int (*set_low_power_mode)(struct tcpc_device *tcpc, bool en, int pull);
 	int (*set_usb_dpdm_pull_low)(
 			struct tcpc_device *tcpc, bool enable);
+#ifdef OPLUS_FEATURE_CHG_BASIC
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+/* add for cancel usb switch */
+	int (*set_vooc_status)(struct tcpc_device *tcpc, bool status);
+	bool (*get_vooc_status)(struct tcpc_device *tcpc);
+#endif
+#endif
 
 #if CONFIG_TYPEC_CAP_AUTO_DISCHARGE
 #if CONFIG_TCPC_AUTO_DISCHARGE_IC

@@ -90,6 +90,10 @@
 #endif
 #endif
 
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+#include "oplus_sap_accelerate.h"
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
+
 extern void set_logtoomuch_enable(int value) __attribute__((weak));
 extern int get_logtoomuch_enable(void) __attribute__((weak));
 extern uint32_t get_wifi_standalone_log_mode(void) __attribute__((weak));
@@ -2092,6 +2096,10 @@ uint32_t kalRxIndicateOnePkt(struct GLUE_INFO
 	}
 
 	kalTraceEvent("Rx ipid=0x%04x", GLUE_GET_PKT_IP_ID(prSkb));
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+    oplus_kal_rx_save_prior_pkt_info(prSkb);
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
 
 #if CFG_SUPPORT_RX_GRO
 #if CFG_SUPPORT_SKIP_RX_GRO_FOR_TC
@@ -4574,6 +4582,10 @@ kalQoSFrameClassifierAndPacketInfo(struct GLUE_INFO *prGlueInfo,
 				"skb mark field=[%x]", prSkb->mark);
 	}
 #endif
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+    oplus_kal_tx_accelerate_prior_pkt(prSkb);
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
 
 #ifdef CONFIG_ANDROID_KABI_RESERVE
 	if (prSkb->android_kabi_reserved2 & TX_STREAM_ACCELERATE_FLAG == TX_STREAM_ACCELERATE_FLAG) {

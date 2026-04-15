@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+
 # Copyright (C) 2018-2020 Oplus. All rights reserved.
 
 config OPLUS_FEATURE_PERFORMANCE_SCHED
@@ -221,6 +221,12 @@ config OPLUS_FEATURE_AUDIO_OPT
 	default n
 	help
 	  "Turning off the camera's ux attribute in audio mode"
+
+config OPLUS_FEATURE_SCHED_DDL
+	bool "sched deadline"
+	default y
+	help
+		normal cfs tasks worst sched latency optimization
 
 config OPLUS_SCHED_HALT_MASK_PRT
 	tristate "print cpu halt_mask partial_halt_mask and parse_client"

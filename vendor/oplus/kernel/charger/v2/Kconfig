@@ -120,6 +120,12 @@ config OPLUS_GAUGE_MPC7022
 	help
 	  Say Y here to declare GAUGE MPC7022 support
 
+config OPLUS_GAUGE_SH366002
+	bool "GAUGE SH366002 support"
+	default n
+	help
+	  Say Y here to declare GAUGE SH366002 support
+
 config OPLUS_GAUGE_BQ27Z561
 	bool "GAUGE BQ27Z561 support"
 	help

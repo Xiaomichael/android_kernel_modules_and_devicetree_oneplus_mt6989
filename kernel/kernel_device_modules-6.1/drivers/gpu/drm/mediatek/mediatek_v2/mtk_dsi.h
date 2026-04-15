@@ -23,6 +23,16 @@
 #else
 #include "mtk-cmdq-ext.h"
 #endif
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+#define OPLUS_POWER_STATUS         0x16
+enum {
+	OPLUS_POWER_OFF = 0,
+	OPLUS_DOZE,
+	OPLUS_POWER_ON,
+	OPLUS_DOZE_SUSPEND,
+	OPLUS_DOZE_AND_DOZE_SUSPEND_SWITCH,
+};
+/* #endif */
 
 struct t_condition_wq {
 	wait_queue_head_t wq;

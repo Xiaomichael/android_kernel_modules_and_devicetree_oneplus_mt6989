@@ -36,6 +36,9 @@ def define_oplus_local_modules():
             "sn_nci/nfc/i2c_drv.c",
         ]),
         includes = ["."],
+        ko_deps = [
+            "//vendor/oplus/kernel/nfc:oplus_nfc",
+        ],
     )
 
     define_oplus_ddk_module(
@@ -64,6 +67,9 @@ def define_oplus_local_modules():
             "thn31/debuger/logger.c",
         ]),
         includes = ["."],
+        ko_deps = [
+            "//vendor/oplus/kernel/nfc:oplus_nfc",
+        ],
         copts = [
             "-DCONFIG_TMS_NFC_DEVICE",
             "-DCONFIG_TMS_ESE_DEVICE",

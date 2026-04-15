@@ -41,4 +41,5 @@ ssize_t oplus_set_hbm_max_debug(struct kobject *obj,
 void oplus_mtk_read_ddic_v2(u8 ddic_reg, int ret_num, char ret_val[10]);
 void oplus_ddic_dsi_send_cmd(unsigned int cmd_num, char val[20]);
 int oplus_display_get_brightness_time(void *data);
+void lcdinfo_notify(unsigned long val, void *v);
 #endif /*_OPLUS_DISPLAY_COMMON_H_*/

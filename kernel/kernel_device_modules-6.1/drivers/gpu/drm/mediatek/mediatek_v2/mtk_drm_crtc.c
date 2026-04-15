@@ -176,6 +176,9 @@ static struct mtk_drm_property mtk_crtc_property[CRTC_PROP_MAX] = {
 	{DRM_MODE_PROP_ATOMIC, "BRIGHTNESS_NEED_SYNC", 0, UINT_MAX, 0},
 	//#endif
 	{DRM_MODE_PROP_ATOMIC, "STYLUS_MODE", 0, UINT_MAX, 0},
+/* #ifdef OPLUS_FEATURE_DISPLAY */
+	{DRM_MODE_PROP_ATOMIC, "POWER_STATUS", 0, UINT_MAX, 0},
+/* #endif */
 };
 
 static struct cmdq_pkt *sb_cmdq_handle;
@@ -12259,7 +12262,8 @@ void mtk_crtc_config_round_corner(struct drm_crtc *crtc,
 			cfg.h = mtk_crtc_get_height_by_comp(__func__, crtc, comp, false);
 #ifdef OPLUS_FEATURE_DISPLAY
 			if (!strcmp(panel_name, "ac304_p_3_a0027_vdo_panel") ||
-				!strcmp(panel_name, "ac304_p_7_a0025_vdo_panel")) {
+				!strcmp(panel_name, "ac304_p_7_a0025_vdo_panel") ||
+				!strcmp(panel_name, "aa642_p_7_a0025_vdo_panel")) {
 				if (cfg.h == 2372) {
 					cfg.h = 2376;
 				}

@@ -31,6 +31,10 @@
 #else
 #include "mtk_energy_model/v1/energy_model.h"
 #endif
+
+#if IS_ENABLED(CONFIG_OPLUS_SCHED_GROUP_OPT)
+#include <../kernel/oplus_cpu/sched/sched_assist/sa_group.h>
+#endif
 #define DEFAULT_GRP_THRESHOLD	20
 #define DEFAULT_GRP_THRESHOLD_UTIL	460
 static struct grp *related_thread_groups[GROUP_ID_RECORD_MAX];
@@ -275,9 +279,17 @@ static void group_init_tg_pointers(void)
 	struct cgroup_subsys_state *css = &root_task_group.css;
 	struct cgroup_subsys_state *top_css = css;
 
+#if IS_ENABLED(CONFIG_OPLUS_SCHED_GROUP_OPT)
+	oplus_update_tg_map(top_css, true);
+#endif
+
 	rcu_read_lock();
-	css_for_each_child(css, top_css)
+	css_for_each_child(css, top_css) {
 		group_update_tg_pointer(css);
+#if IS_ENABLED(CONFIG_OPLUS_SCHED_GROUP_OPT)
+		oplus_update_tg_map(css, true);
+#endif
+	}
 	rcu_read_unlock();
 }
 
@@ -322,6 +334,9 @@ static void group_android_rvh_cpu_cgroup_online(void *unused, struct cgroup_subs
 		return;
 
 	group_update_tg_pointer(css);
+#if IS_ENABLED(CONFIG_OPLUS_SCHED_GROUP_OPT)
+	oplus_update_tg_map(css, false);
+#endif
 }
 
 static void group_android_rvh_cpu_cgroup_attach(void *unused,
@@ -473,14 +488,41 @@ static void group_register_hooks(void)
 		pr_info("register try_to_wake_up_success hooks failed, returned %d\n", ret);
 }
 
+#if IS_ENABLED(CONFIG_OPLUS_SCHED_GROUP_OPT)
+static void android_rvh_cpu_cgroup_online_handler(void *unused, struct cgroup_subsys_state *css)
+{
+	oplus_update_tg_map(css, false);
+}
+
+void oplus_sg_init(void)
+{
+	struct cgroup_subsys_state *css = &root_task_group.css;
+	struct cgroup_subsys_state *top_css = css;
+
+	oplus_update_tg_map(top_css, true);
+
+	rcu_read_lock();
+	css_for_each_child(css, top_css)
+		oplus_update_tg_map(css, true);
+	rcu_read_unlock();
+
+	register_trace_android_rvh_cpu_cgroup_online(
+		android_rvh_cpu_cgroup_online_handler, NULL);
+}
+#endif
+
 void group_init(void)
 {
 	struct task_struct *g, *p;
 	int cpu;
 	u64 window_start_ns, nr_windows;
-
-	if (unlikely(flt_get_mode() == FLT_MODE_0))
+	pr_err("oplus group_init %u\n", flt_get_mode());
+	if (unlikely(flt_get_mode() == FLT_MODE_0)) {
+#if IS_ENABLED(CONFIG_OPLUS_SCHED_GROUP_OPT)
+		oplus_sg_init();
+#endif
 		return;
+	}
 
 	/* gp alloc fail */
 	if (alloc_related_thread_groups() != 0)

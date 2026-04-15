@@ -2809,6 +2809,8 @@ static int csirx_mac_csi_lrte_setting(struct seninf_ctx *ctx)
 static int csirx_phyA_setting(struct seninf_ctx *ctx)
 {
 	void *base, *baseA, *baseB, *dphy_base;
+	int i = 0;
+	int port = 0;
 	u64 data_rate = 0;
 
 	base = ctx->reg_ana_csi_rx[(unsigned int)ctx->port];
@@ -2908,111 +2910,180 @@ static int csirx_phyA_setting(struct seninf_ctx *ctx)
 			SENINF_BITS(baseB, CDPHY_RX_ANA_0,
 				    RG_CSI0_CPHY_T1_HSMODE_EN, 1);
 #ifdef OPLUS_FEATURE_CAMERA_COMMON
+			if (!ctx->is_cphy && ctx->csi_param.cdr_delay && ctx->csi_param.cdr_delay <= 254) {
+				for (i = 0; i <= ctx->is_4d1c; i++) {
+					port = i ? ctx->portB : ctx->port;
+					base = ctx->reg_ana_csi_rx[(unsigned int)port];
+					// L0
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_6,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L0_DELAY_CODE, (ctx->csi_param.cdr_delay & 0b11111111));
+					mdelay(1);
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_6,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L0_DELAY_APPLY, 0x0);
+					mdelay(1);
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_6,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L0_DELAY_APPLY, 0x1);
+					// L1
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_7,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L1_DELAY_CODE, (ctx->csi_param.cdr_delay & 0b11111111));
+					mdelay(1);
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_7,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L1_DELAY_APPLY, 0x0);
+					mdelay(1);
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_7,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L1_DELAY_APPLY, 0x1);
+					// L2
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_8,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L2_DELAY_CODE, (ctx->csi_param.cdr_delay & 0b11111111));
+					mdelay(1);
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_8,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L2_DELAY_APPLY, 0x0);
+					mdelay(1);
+					SENINF_BITS(base, CDPHY_RX_ANA_FORCE_MODE_8,
+							RG_SW_FORCE_VAL_DA_CSI0_DPHY_L2_DELAY_APPLY, 0x1);
+
+					dev_info(ctx->dev,
+					"EYE_SCAN_KEYS_CDR_DELAY input val_signed=%d, write to reg val=0x%x\n",
+						ctx->csi_param.cdr_delay, (ctx->csi_param.cdr_delay & 0b11111111));
+				}
+			}
+
 			switch (ctx->csi_param.dphy_ctle) {
+			case 1:
+				dev_info(ctx->dev, "EQ_SR0 = 0001, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
+				//1.EQ_SR0 = 0000
+				SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x55);
+				SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x55);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+				break;
+			case 2:
+				dev_info(ctx->dev, "EQ_SR0 = 0001, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
+				//1.EQ_SR0 = 0001
+				SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x157);
+				SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x157);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+				break;
+			case 3:
+				//2.EQ_SR0 = 0011
+				dev_info(ctx->dev, "EQ_SR0 = 0011, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
+				SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x357);
+				SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x357);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+				break;
+			case 4:
+				//3.EQ_SR0 = 0111
+				dev_info(ctx->dev, "EQ_SR0 = 0111, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
+				SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x757);
+				SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x757);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+				break;
+			case 5:
+				//4.EQ_SR0 = 1111
+				dev_info(ctx->dev, "EQ_SR0 = 1111, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
+				SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0xF57);
+				SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0xF57);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+				break;
+			default:
+				dev_info(ctx->dev, "Default: EQ_SR0 = 0000, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
+				if (data_rate < 1500000000) {
+					/* DPHY non-split mode < 1.5G */
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_BW, 0x1);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_DG0_EN, 0x0);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_SR0, 0x0);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_IS, 0x2);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_14,
+							RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
+
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_BW, 0x1);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_DG0_EN, 0x0);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_SR0, 0x0);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_IS, 0x2);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_14,
+							RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
+				} else if (data_rate < 2500000000) {
+					/* DPHY non-split mode 1.5G ~ 2.5G */
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_BW, 0x1);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_SR0, 0x0);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_IS, 0x2);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_14,
+							RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
+
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_BW, 0x1);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_SR0, 0x0);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_IS, 0x2);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_14,
+							RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
+				} else if (data_rate < 4500000000)  {
+					/* DPHY non-split mode 2.5G ~ 4.5G */
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_BW, 0x3);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_SR0, 0x0);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_IS, 0x1);
+					SENINF_BITS(baseA, CDPHY_RX_ANA_14,
+							RG_CSI0_CDPHY_EQ_OS_IS, 0x0);
+
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_BW, 0x3);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_SR0, 0x0);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5,
+							RG_CSI0_CDPHY_EQ_IS, 0x1);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_14,
+							RG_CSI0_CDPHY_EQ_OS_IS, 0x0);
+				} else {
+					dev_info(ctx->dev, "[ERROR]data_rate %llu bps > 4.5G not support\n", data_rate);
+				}
+				break;
+			}
+
+			switch (ctx->csi_param.dphy_eq_bw) {
 				case 1:
-					dev_info(ctx->dev, "EQ_SR0 = 0001, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
-					//1.EQ_SR0 = 0000
-					SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x55);
-					SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x55);
-					dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+					dev_info(ctx->dev, "EQ_BW = 00, dphy_eq_bw = %d\n", ctx->csi_param.dphy_eq_bw);
+					//1.EQ_BW = 00
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x00);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x00);
 					break;
 				case 2:
-					dev_info(ctx->dev, "EQ_SR0 = 0001, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
-					//1.EQ_SR0 = 0001
-					SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x157);
-					SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x157);
-					dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+					dev_info(ctx->dev, "EQ_BW = 01, dphy_eq_bw = %d\n", ctx->csi_param.dphy_eq_bw);
+					//1.EQ_BW = 01
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x01);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x01);
 					break;
 				case 3:
-					//2.EQ_SR0 = 0011
-					dev_info(ctx->dev, "EQ_SR0 = 0011, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
-					SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x357);
-					SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x357);
-					dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
-					break;
-				case 4:
-					//3.EQ_SR0 = 0111
-					dev_info(ctx->dev, "EQ_SR0 = 0111, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
-					SENINF_WRITE_REG(baseA, CDPHY_RX_ANA_5, 0x757);
-					SENINF_WRITE_REG(baseB, CDPHY_RX_ANA_5, 0x757);
-					dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(baseA, CDPHY_RX_ANA_5));
+					dev_info(ctx->dev, "EQ_BW = 11, dphy_eq_bw = %d\n", ctx->csi_param.dphy_eq_bw);
+					//1.EQ_BW = 11
+					SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x03);
+					SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x03);
 					break;
 				default:
-					dev_info(ctx->dev, "Default: EQ_SR0 = 0000, dphy_ctle = %d\n", ctx->csi_param.dphy_ctle);
-					if (data_rate < 1500000000) {
-						/* DPHY non-split mode < 1.5G */
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_BW, 0x1);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_DG0_EN, 0x0);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_SR0, 0x0);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_IS, 0x2);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_14,
-								RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
-
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_BW, 0x1);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_DG0_EN, 0x0);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_SR0, 0x0);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_IS, 0x2);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_14,
-								RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
-					} else if (data_rate < 2500000000) {
-						/* DPHY non-split mode 1.5G ~ 2.5G */
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_BW, 0x1);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_SR0, 0x0);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_IS, 0x2);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_14,
-								RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
-
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_BW, 0x1);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_SR0, 0x0);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_IS, 0x2);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_14,
-								RG_CSI0_CDPHY_EQ_OS_IS, 0x1);
-					} else if (data_rate < 4500000000)  {
-						/* DPHY non-split mode 2.5G ~ 4.5G */
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_BW, 0x3);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_SR0, 0x0);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_IS, 0x1);
-						SENINF_BITS(baseA, CDPHY_RX_ANA_14,
-								RG_CSI0_CDPHY_EQ_OS_IS, 0x0);
-
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_BW, 0x3);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_SR0, 0x0);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_5,
-								RG_CSI0_CDPHY_EQ_IS, 0x1);
-						SENINF_BITS(baseB, CDPHY_RX_ANA_14,
-								RG_CSI0_CDPHY_EQ_OS_IS, 0x0);
-					} else {
-						dev_info(ctx->dev, "[ERROR]data_rate %llu bps > 4.5G not support\n", data_rate);
-					}
 					break;
 			}
+
 #else
 			if (data_rate < 1500000000) {
 				/* DPHY non-split mode < 1.5G */
@@ -3334,7 +3405,104 @@ static int csirx_phyA_setting(struct seninf_ctx *ctx)
 			} else {
 				dev_info(ctx->dev, "[ERROR]data_rate %llu sps > 4.5G not support\n", data_rate);
 			}
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+			if(ctx->csi_param.cdr_delay && (ctx->csi_param.cdr_delay < 31)) {
+				dev_info(ctx->dev, "cdr_delay = %d\n", ctx->csi_param.cdr_delay);
+				//BaseA T0
+				SENINF_BITS(baseA, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T0_CDR_RSTB_CODE, ((ctx->csi_param.cdr_delay & 0b111000) >> 3));
+				SENINF_BITS(baseA, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T0_CDR_SEC_EDGE_CODE, (ctx->csi_param.cdr_delay & 0b111));
+				SENINF_BITS(baseA, CDPHY_RX_ANA_6,
+						RG_CSI0_CPHY_T0_CDR_CK_DELAY, ctx->csi_param.cdr_delay);
+				//BaseA T1
+				SENINF_BITS(baseA, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T1_CDR_RSTB_CODE, ((ctx->csi_param.cdr_delay & 0b111000) >> 3));
+				SENINF_BITS(baseA, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T1_CDR_SEC_EDGE_CODE, (ctx->csi_param.cdr_delay & 0b111));
+				SENINF_BITS(baseA, CDPHY_RX_ANA_6,
+						RG_CSI0_CPHY_T1_CDR_CK_DELAY, ctx->csi_param.cdr_delay);
 
+				//BaseB T0
+				SENINF_BITS(baseB, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T0_CDR_RSTB_CODE, ((ctx->csi_param.cdr_delay & 0b111000) >> 3));
+				SENINF_BITS(baseB, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T0_CDR_SEC_EDGE_CODE, (ctx->csi_param.cdr_delay & 0b111));
+				SENINF_BITS(baseB, CDPHY_RX_ANA_6,
+						RG_CSI0_CPHY_T0_CDR_CK_DELAY, ctx->csi_param.cdr_delay);
+				//BaseB T1
+				SENINF_BITS(baseB, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T1_CDR_RSTB_CODE, ((ctx->csi_param.cdr_delay & 0b111000) >> 3));
+				SENINF_BITS(baseB, CDPHY_RX_ANA_4,
+						RG_CSI0_CPHY_T1_CDR_SEC_EDGE_CODE, (ctx->csi_param.cdr_delay & 0b111));
+				SENINF_BITS(baseB, CDPHY_RX_ANA_6,
+						RG_CSI0_CPHY_T1_CDR_CK_DELAY, ctx->csi_param.cdr_delay);
+			}
+
+			switch (ctx->csi_param.cphy_ctle) {
+			case 1:
+				dev_info(ctx->dev, "EQ_SR0 = 0000, cphy_ctle = %d\n", ctx->csi_param.cphy_ctle);
+				//1.EQ_SR0 = 0000
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x0);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x0);
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x0);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x0);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(base, CDPHY_RX_ANA_5));
+				break;
+			case 2:
+				dev_info(ctx->dev, "EQ_SR0 = 0001, cphy_ctle = %d\n", ctx->csi_param.cphy_ctle);
+				//1.EQ_SR0 = 0001
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x1);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x1);
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(base, CDPHY_RX_ANA_5));
+				break;
+			case 3:
+				//2.EQ_SR0 = 0011
+				dev_info(ctx->dev, "EQ_SR0 = 0011, cphy_ctle = %d\n", ctx->csi_param.cphy_ctle);
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x3);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x3);
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(base, CDPHY_RX_ANA_5));
+				break;
+			case 4:
+				//3.EQ_SR0 = 0111
+				dev_info(ctx->dev, "EQ_SR0 = 0111, cphy_ctle = %d\n", ctx->csi_param.cphy_ctle);
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x7);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_SR0, 0x7);
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_DG0_EN, 0x1);
+				dev_info(ctx->dev, "CDPHY_RX_ANA_5:(0x%08x)\n", SENINF_READ_REG(base, CDPHY_RX_ANA_5));
+				break;
+			default:
+				break;
+			}
+
+			switch (ctx->csi_param.cphy_eq_bw) {
+			case 1:
+				dev_info(ctx->dev, "EQ_BW = 00, dphy_eq_bw = %d\n", ctx->csi_param.dphy_eq_bw);
+				//1.EQ_BW = 00
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x00);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x00);
+				break;
+			case 2:
+				dev_info(ctx->dev, "EQ_BW = 01, dphy_eq_bw = %d\n", ctx->csi_param.dphy_eq_bw);
+				//1.EQ_BW = 01
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x01);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x01);
+				break;
+			case 3:
+				dev_info(ctx->dev, "EQ_BW = 11, dphy_eq_bw = %d\n", ctx->csi_param.dphy_eq_bw);
+				//1.EQ_BW = 11
+				SENINF_BITS(baseA, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x03);
+				SENINF_BITS(baseB, CDPHY_RX_ANA_5, RG_CSI0_CDPHY_EQ_BW, 0x03);
+				break;
+			default:
+				break;
+			}
+#endif // OPLUS_FEATURE_CAMERA_COMMON
 		} else {
 			/* CPHY split mode */
 			SENINF_BITS(base, CDPHY_RX_ANA_0,

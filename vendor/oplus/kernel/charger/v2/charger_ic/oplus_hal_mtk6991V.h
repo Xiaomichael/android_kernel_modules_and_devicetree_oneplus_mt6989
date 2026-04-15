@@ -313,6 +313,7 @@ typedef enum {
 	NTC_USB_BTB,
 	NTC_MASTER_CP_BTB,
 	NTC_SLAVE_CP_BTB,
+	NTC_VBAT_PWR_BTB,
 } NTC_TYPE;
 
 struct temp_param {
@@ -559,6 +560,7 @@ struct mtk_charger {
 	struct iio_channel	*usb_btb_temp_chan;
 	struct iio_channel	*master_cp_chan;
 	struct iio_channel	*slave_cp_chan;
+	struct iio_channel	*vbat_pwr_chan;
 
 #ifdef CONFIG_THERMAL
 	struct thermal_zone_device *master_cp_temp_tzd;
@@ -578,6 +580,7 @@ struct mtk_charger {
 	int chargeric_temp_volt;
 	int chargeric_temp;
 	int i_sub_board_temp;
+	int vbat_pwr_vol;
 	bool support_ntc_01c_precision;
 	bool ntc_temp_volt_1840mv;
 	bool support_subboard_ntc;

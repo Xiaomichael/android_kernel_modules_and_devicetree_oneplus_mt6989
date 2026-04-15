@@ -47,6 +47,9 @@
 #include "gl_csi.h"
 #endif
 
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+#include "oplus_sap_accelerate.h"
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
 /*
  * #if CFG_SUPPORT_QA_TOOL
  * extern UINT_16 g_u2DumpIndex;
@@ -22353,3 +22356,52 @@ int priv_driver_set_6g_pwr_mode(struct net_device *prNetDev, char *pcCommand,
 
 }
 #endif
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+int priv_driver_enable_oplus_sap_accelerate(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen)
+{
+    DBGLOG(REQ, INFO,
+        "[oplusSapAccelerate]enable oplus sap accelerate module\n");
+    int32_t i4BytesWritten = 0;
+    oplus_enable_sap_accelerate_module();
+    i4BytesWritten =
+        kalSnprintf(pcCommand, i4TotalLen, "sap acce func enable successful\n");
+    return i4BytesWritten;
+}
+
+int priv_driver_disable_oplus_sap_accelerate(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen)
+{
+    DBGLOG(REQ, INFO,
+        "[oplusSapAccelerate]disable oplus sap accelerate module\n");
+    int32_t i4BytesWritten = 0;
+    oplus_disable_sap_accelerate_module();
+    i4BytesWritten = kalSnprintf(pcCommand, i4TotalLen,
+	        "sap acce func disable successful\n");
+    return i4BytesWritten;
+}
+
+int priv_driver_get_oplus_sap_accelerate_status(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen)
+{
+    DBGLOG(REQ, INFO,
+        "[oplusSapAccelerate]get oplus sap accelerate module status\n");
+    int32_t i4BytesWritten = 0;
+    bool status = oplus_get_sap_acce_func_status();
+    i4BytesWritten = kalSnprintf(pcCommand, i4TotalLen,
+            "current sap acce func status is %d\n", status);
+    return i4BytesWritten;
+}
+
+int priv_driver_get_oplus_sap_acc_statistic_data(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen)
+{
+    int32_t i4BytesWritten = 0;
+    long statistic_data[2] = {0, 0};
+    oplus_get_sap_acc_statistic_data(statistic_data);
+    i4BytesWritten = kalSnprintf(pcCommand, i4TotalLen, "%ld, %ld\n",
+                                statistic_data[0], statistic_data[1]);
+    return i4BytesWritten;
+}
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */

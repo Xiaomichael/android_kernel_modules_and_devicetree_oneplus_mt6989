@@ -215,6 +215,10 @@
 			status = "okay";
 			sup_accel_rpt = <1>;
 		};
+		oplus_car_motion: oplus_car_motion {
+			status = "okay";
+			support_car_motion = <1>;
+		};
 	};
 /* sensor end */
 };

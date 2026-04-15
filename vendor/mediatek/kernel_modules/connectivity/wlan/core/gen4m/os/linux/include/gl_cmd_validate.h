@@ -401,6 +401,14 @@
 #define CMD_FORCE_STBC				"FORCE_STBC"
 #define CMD_FORCE_MRC				"FORCE_MRC"
 #define CMD_SET_CUSTOM_TX_POWER_CALLING         "SET_CUSTOM_TX_POWER_CALLING"
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+#define CMD_OPLUS_ENABLE_SAP_ACCELERATE_FUNC "enable_oplus_sap_accelerate"
+#define CMD_OPLUS_DISABLE_SAP_ACCELERATE_FUNC "disable_oplus_sap_accelerate"
+#define CMD_OPLUS_GET_SAP_ACCELERATE_FUNC_STATUS \
+    "get_oplus_sap_accelerate_func_status"
+#define CMD_OPLUS_GET_SAP_ACC_STATISTIC_DATA "get_oplus_sap_acc_statistic_data"
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
 /*****************************************************************************
 *                             D A T A   T Y P E S
 ******************************************************************************

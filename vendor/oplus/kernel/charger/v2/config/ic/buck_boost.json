@@ -1532,8 +1532,106 @@
                     }
                 }
             }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_BUCK_SET_BURST_MODE",
+            "desc": {
+                "zh": "设置buck的burst mode"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["bool"],
+            "parameter_desc": [
+                {
+                    "range": "*",
+                    "type": "in",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
+            ],
+            "vict": {
+                "read": false,
+                "write": false,
+                "overwrite": false
+            }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_BUCK_SET_LOW_VSYS_THR",
+            "desc": {
+                "zh": "设置buck的vsys thr"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["bool"],
+            "parameter_desc": [
+                {
+                    "range": "*",
+                    "type": "in",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
+            ],
+            "vict": {
+                "read": false,
+                "write": false,
+                "overwrite": false
+            }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_BUCK_SET_OVP_FORCED",
+            "desc": {
+                "zh": "设置OVP FORCED"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["bool"],
+            "parameter_desc": [
+                {
+                    "range": "0-1",
+                    "type": "in",
+                    "desc": {
+                        "zh": "1: OVP FET Forced On, 0: OVP FET Normal Operation"
+                    }
+                }
+            ],
+            "vict": {
+                "read": false,
+                "write": {
+                    "cmd": "vict -f {id} -S{val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                },
+                "overwrite": {
+                    "cmd": "vict -f {id} -O {val} vic-*",
+                    "desc": {
+                        "zh": "N/A"
+                    }
+                }
+            }
+        },
+        {
+            "lable": "OPLUS_IC_FUNC_BUCK_SET_DPDM_OVP_DISABLE",
+            "desc": {
+                "zh": "关闭WCD OVP"
+            },
+            "auto_debug_code": true,
+            "parameter_list": ["bool"],
+            "parameter_desc": [
+                {
+                    "range": "0-1",
+                    "type": "in",
+                    "desc": {
+                        "zh": "0:不生效, 1:生效"
+                    }
+                }
+            ],
+            "vict": {
+                "read": false,
+                "write": false,
+                "overwrite": false
+            }
         }
     ],
 
-    "version": "V4.1:55:58c47b13402cf6495f3953ebc4c2235c9f46df0b6b2408607c2224e3a87d404e"
+    "version": "V6.0:59:62c8c8c4eb192fe714d79427a0e201fdd1e0d3a3d0beb25f87208b1fa1ce75b3"
 }

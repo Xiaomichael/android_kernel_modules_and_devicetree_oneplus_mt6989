@@ -415,6 +415,9 @@ static int sc6607_ufcs_enable(struct ufcs_dev *ufcs)
 
 	chip = ufcs->drv_data;
 
+	if (chip->sc6607_buck && chip->sc6607_buck->is_sc6607a)
+		sc6607a_set_dpdm_ctrl(chip->sc6607_buck, true);
+
 	for (i = 0; i < SC6607_ENABLE_REG_NUM; i++) {
 		rc = sc6607_write_byte(chip, addr_buf[i], cmd_buf[i]);
 		if (rc < 0) {
@@ -449,6 +452,9 @@ static int sc6607_ufcs_disable(struct ufcs_dev *ufcs)
 		chg_err("write i2c failed\n");
 		return rc;
 	}
+
+	if (chip->sc6607_buck && chip->sc6607_buck->is_sc6607a)
+		sc6607a_set_dpdm_ctrl(chip->sc6607_buck, false);
 
 	return 0;
 }

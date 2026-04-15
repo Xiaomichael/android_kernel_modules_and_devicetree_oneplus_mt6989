@@ -941,6 +941,10 @@ static int lcm_setbacklight_cmdq(void *dsi, dcs_write_gce cb, void *handle, unsi
 		}
 		lhbm_70nit_off_action = 0;
 	}
+	if (!oplus_ofp_get_aod_state()) {
+		DISP_DEBUG("func:%s, line:%d\n", __func__, __LINE__);
+		lcdinfo_notify(LCM_BRIGHTNESS_TYPE, &level);
+	}
 
 	DISP_ERR("aa600_p_3_a0025 setbacklight finish\n");
 	return 0;

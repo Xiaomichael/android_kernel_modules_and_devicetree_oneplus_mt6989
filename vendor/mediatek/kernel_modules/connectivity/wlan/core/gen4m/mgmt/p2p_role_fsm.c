@@ -1450,6 +1450,7 @@ void p2pRoleFsmRunEventPreStartAP(struct ADAPTER *prAdapter,
 	u_int8_t bSkipCac = TRUE;
 	enum ENUM_BAND eBand;
 	uint8_t ucChannelNum;
+	struct SCAN_INFO *prScanInfo;
 
 	prP2pStartAPMsg = (struct MSG_P2P_START_AP *) prMsgHdr;
 
@@ -1524,6 +1525,15 @@ void p2pRoleFsmRunEventPreStartAP(struct ADAPTER *prAdapter,
 	p2pFuncStoreUnsolProbeInfo(prAdapter,
 				   &prP2pStartAPMsg->rUnsolProbe,
 				   prP2pRoleFsmInfo->ucBssIndex);
+
+	/* Abort scan before StartAP */
+	prScanInfo = &(prAdapter->rWifiVar.rScanInfo);
+	if (prScanInfo && (prScanInfo->eCurrentState == SCAN_STATE_SCANNING)) {
+		if (IS_BSS_INDEX_AIS(prAdapter,
+			prScanInfo->rScanParam.ucBssIndex))
+			aisFsmStateAbort_SCAN(prAdapter,
+			prScanInfo->rScanParam.ucBssIndex);
+	}
 
 	if (bSkipCac)
 		p2pRoleFsmRunEventStartAP(prAdapter, prMsgHdr);

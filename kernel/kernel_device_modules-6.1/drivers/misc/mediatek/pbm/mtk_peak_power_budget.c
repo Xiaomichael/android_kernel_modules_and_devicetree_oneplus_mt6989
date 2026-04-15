@@ -959,8 +959,6 @@ static int read_power_budget_dts(struct platform_device *pdev)
 	}
 	pr_info("%s\n", str);
 
-	ret = read_dts_val(np, "bat-ocv-table-num", &fg_data.fg_info_size, 1);
-
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	pr_info("%s: ocp[%d], uvlo[%d], fg_info_size[%d]\n",
 		__func__, pb.ocp, pb.uvlo, fg_data.fg_info_size);
@@ -981,6 +979,7 @@ static int read_power_budget_dts(struct platform_device *pdev)
 	pr_info(" %s, fg_data.fg_info_size:%d, ret:%d, psy_name: %s\n",
 		 __func__, fg_data.fg_info_size, ret, fg_data.psy_name);
 #endif
+	ret = read_dts_val(np, "bat-ocv-table-num", &fg_data.fg_info_size, 1);
 	if (ret || fg_data.fg_info_size == 0)
 		read_mtk_gauge_dts(pdev);
 	else

@@ -5,6 +5,18 @@
 
 #include "nfc_driver.h"
 
+#define MIXED_CHIPSET    "mixed-chipset"
+#define MAX_ID_COUNT     5
+#define SUPPORT_MIXED_CHIPSET     1
+#define NOT_SUPPORT_MIXED_CHIPSET     0
+#define SUPPORT_CHIPSET_LIST     "THN31|THN31F|THN31F-A|THN31S|THN31DZ"
+#define INVALID_ID    -1
+
+struct id_entry {
+    u32 key;
+    const char *chipset;
+};
+
 /*********** PART0: Global Variables Area ***********/
 size_t last_count = 0;
 static ktime_t g_pre_write_time;
@@ -459,6 +471,154 @@ static const struct file_operations nfc_fops = {
 };
 
 /*********** PART3: NFC Driver Start Area ***********/
+static int tms_nfc_read_id_properties(struct device_node *np, u32 id_count, struct id_entry *id_entries)
+{
+    int err;
+    u32 i;
+    char propname[30];
+
+    for (i = 0; i < id_count; i++) {
+        snprintf(propname, sizeof(propname), "id-%u-key", i);
+        err = of_property_read_u32(np, propname, &id_entries[i].key);
+        if (err) {
+          TMS_ERR("Failed to read dts node:%s\n", propname);
+          return err;
+        }
+
+        snprintf(propname, sizeof(propname), "id-%u-value-chipset", i);
+        err = of_property_read_string(np, propname, &id_entries[i].chipset);
+        if (err) {
+          TMS_ERR("Failed to read dts node:%s\n", propname);
+          return err;
+        }
+    }
+    TMS_INFO("tms_nfc_read_id_properties success");
+    return 0;
+}
+
+static int check_nfc_chip(struct device *dev)
+{
+    struct device_node *np = NULL;
+    u32 id_count;
+    int i;
+    int gpio_value;
+    int err;
+    bool found = false;
+    struct id_entry *id_entries = NULL;
+    uint32_t mixed_chipset;
+
+    if (NULL == dev) {
+        TMS_ERR("%s dev is NULL", __func__);
+        return -ENOENT;
+    }
+
+    np = dev->of_node;
+
+    if (NULL == np) {
+        TMS_ERR("%s dev->of_node is NULL", __func__);
+        return -ENOENT;
+    }
+
+    if (of_property_read_u32(np, MIXED_CHIPSET, &mixed_chipset)) {
+        TMS_INFO("%s, read dts property mixed-chipset failed", __func__);
+        return 0;
+    } else {
+        if (SUPPORT_MIXED_CHIPSET == mixed_chipset) {
+            TMS_INFO("%s, the value of dts property mixed-chipset is 1(true)", __func__);
+
+            err = of_property_read_u32(np, "id_count", &id_count);
+            if (err) {
+                TMS_ERR("%s read dts property id_count failed", __func__);
+                return err;
+            }
+
+            if (id_count >= MAX_ID_COUNT) {
+                TMS_ERR("%s error: id_count is more than %d", __func__, MAX_ID_COUNT);
+                return -ENOENT;
+            }
+
+            id_entries = kzalloc(sizeof(struct id_entry) * id_count, GFP_DMA | GFP_KERNEL);
+            if(NULL == id_entries) {
+                TMS_ERR("%s error: can not kzalloc memory for id_entry", __func__);
+                return -ENOMEM;
+            }
+
+            err = tms_nfc_read_id_properties(np, id_count, id_entries);
+            if (err) {
+                TMS_ERR("%s error: tms_nfc_read_id_properties failed", __func__);
+                kfree(id_entries);
+                return err;
+            }
+
+             /* Different functions according to the value of id_count */
+            TMS_INFO("id_count: %u\n", id_count);
+
+            switch (id_count) {
+            case 2:
+                fallthrough;
+            case 3:
+                gpio_value = get_nfc_id();
+                TMS_ERR("%s, tms_nfc final gpio_value = %d\n", __func__, gpio_value);
+                if (gpio_value == INVALID_ID) {
+                    for (int delay = 0; delay < 6; delay++) {
+                        msleep(500);
+                        gpio_value = get_nfc_id();
+                        if(gpio_value != INVALID_ID) {
+                            pr_info("retry times = %d\n", delay);
+                            break;
+                        }
+                    }
+                    if(gpio_value == INVALID_ID) {
+                        err = -EINVAL;
+                    }
+                }
+                break;
+            default:
+                TMS_ERR("Unexpected id_count value: %u\n", id_count);
+                break;
+            }
+
+            if (err) {
+                TMS_ERR("%s error: get_gpio_value failed", __func__);
+                kfree(id_entries);
+                return err;
+            }
+
+            for (i = 0; i < id_count; i++) {
+                if (id_entries[i].key == gpio_value) {
+                    if (strstr(SUPPORT_CHIPSET_LIST, id_entries[i].chipset) == NULL) {
+                        TMS_ERR("%s this nfc chipset:%s does not correspond to this nfc driver", __func__, id_entries[i].chipset);
+                        err = -EINVAL;
+                        kfree(id_entries);
+                        return err;
+                    }
+
+                    pr_debug("%s this nfc chipset:%s corresponds to this nfc driver", __func__, id_entries[i].chipset);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                TMS_ERR("%s no matching key found for GPIO value\n", __func__);
+                err = -EINVAL;
+                kfree(id_entries);
+                return err;
+            }
+
+            TMS_INFO("%s checkNfcChip success\n", __func__);
+            kfree(id_entries);
+            return 0;
+
+        } else if (NOT_SUPPORT_MIXED_CHIPSET == mixed_chipset) {
+            TMS_INFO("%s, the value of dts property mixed-chipset is 0(false)", __func__);
+            return 0;
+        } else {
+            TMS_ERR("%s, mixed-chipset's value is wrong,it is neither 1 nor 0", __func__);
+            return -ENOENT;
+        }
+    }
+}
 #if LINUX_VERSION_CODE < KERNEL_VERSION(6,3,0)
 int nfc_device_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #else
@@ -468,6 +628,12 @@ int nfc_device_probe(struct i2c_client *client)
     int ret;
     struct nfc_info *nfc = NULL;
     TMS_INFO("Enter\n");
+
+    ret = check_nfc_chip(&client->dev);
+    if (ret) {
+        TMS_ERR("TmsDrv: %s: failed to checkNfcChip\n", __func__);
+        goto err;
+    }
 
     /* step1 : alloc nfc_info */
     nfc = nfc_data_alloc(&client->dev, nfc);
@@ -545,6 +711,8 @@ err_free_nfc_info:
 err_free_nfc_malloc:
     nfc_data_free(&client->dev, nfc);
     TMS_ERR("Failed, ret = %d\n", ret);
+err:
+    TMS_ERR("TmsDrv: %s: probing not successful, check hardware\n", __func__);
     return ret;
 }
 

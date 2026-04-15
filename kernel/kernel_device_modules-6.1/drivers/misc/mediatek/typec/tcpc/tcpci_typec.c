@@ -1623,10 +1623,19 @@ static inline int typec_attached_snk_vbus_absent(struct tcpc_device *tcpc)
 {
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 #if CONFIG_USB_PD_DIRECT_CHARGE
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+/* add for cancel usb switch */
+	if ((tcpc->pd_during_direct_charge || tcpci_get_vooc_status(tcpc)) &&
+		!tcpci_check_vsafe0v(tcpc)) {
+		TYPEC_INFO("Ignore vbus_absent(snk), DirectCharge\n");
+		return 0;
+	}
+#else
 	if (tcpc->pd_during_direct_charge && !tcpci_check_vsafe0v(tcpc)) {
 		TYPEC_DBG("Ignore vbus_absent(snk), DirectCharge\n");
 		return 0;
 	}
+#endif
 #endif	/* CONFIG_USB_PD_DIRECT_CHARGE */
 
 	if (tcpc->pd_wait_hard_reset_complete &&

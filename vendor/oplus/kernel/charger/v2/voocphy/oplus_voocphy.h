@@ -575,13 +575,14 @@ enum {
 	CHIP_ID_DEFAULT = 0,
 	CHIP_ID_SC8547,
 	CHIP_ID_HL7138,
+	CHIP_ID_NU2112A,
+	CHIP_ID_SC6607A,
 };
 
 enum oplus_voocphy_ovp_ctrl {
 	MASTER_CP_ID,
 	SLAVE_CP_ID,
 	INVALID_CP_ID,
-	CHIP_ID_NU2112A,
 };
 
 enum oplus_fastchg_copycat_type {
@@ -810,6 +811,7 @@ struct oplus_voocphy_manager {
 	struct delayed_work clear_boost_work;
 	struct delayed_work voocphy_send_ongoing_notify;
 	struct delayed_work recovery_system_work;
+	struct delayed_work pcc_work;
 	struct work_struct first_ask_batvol_work;
 	atomic_t  voocphy_freq_state;
 	bool recovery_system_done;
@@ -946,6 +948,13 @@ struct oplus_voocphy_manager {
 	bool slave_ic_abnormal;
 	struct delayed_work clear_ic_abnormal_status_work;
 	struct oplus_chg_strategy *svooc_pcc_strategy;
+	bool svooc_pcc_strategy_v2;
+
+	bool vbus_adjust_new_method;
+	bool vbus_adjust_done;
+	bool in_vbus_adjust_trans;
+	u8 vbus_adjust_hold_cnt;
+	u8 last_vooc_vbus_status;
 };
 
 struct oplus_voocphy_operations {
@@ -990,6 +999,7 @@ struct oplus_voocphy_operations {
 	int (*get_cp_error_type)(struct oplus_voocphy_manager *chip, int *err_type);
 	bool (*ic_is_abnormal)(struct oplus_voocphy_manager *chip);
 	int (*set_sstimeout_ucp_enable)(struct oplus_voocphy_manager *chip, bool enable);
+	int (*cp_set_vac2v2x_uvp)(struct oplus_voocphy_manager *chip, bool enable);
 };
 
 #define VOOCPHY_LOG_BUF_LEN 1024

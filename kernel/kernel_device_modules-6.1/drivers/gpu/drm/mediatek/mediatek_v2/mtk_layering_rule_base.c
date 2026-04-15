@@ -3291,6 +3291,14 @@ static void clear_layer(struct drm_mtk_layering_info *disp_info,
 			       __func__, c->layer_caps);
 		}
 
+		if (priv->data->mmsys_id == MMSYS_MT6878 && priv->is_tablet &&
+			mtk_has_layer_cap(c, MTK_MML_DISP_NOT_SUPPORT) &&
+			mtk_has_layer_cap(c, MTK_MDP_ROT_LAYER)) {
+			mtk_rollback_layer_to_GPU(disp_info, di, top);
+			DDPMSG("%s:if mml not support rto layer roll_back to gpu, caps:0x%08x\n",
+			__func__, c->layer_caps);
+		}
+
 		if (mtk_has_layer_cap(c, MTK_DISP_CLIENT_CLEAR_LAYER)) {
 			*scn_decision_flag |= SCN_CLEAR;
 			DDPMSG("%s add hrt weight\n", __func__);

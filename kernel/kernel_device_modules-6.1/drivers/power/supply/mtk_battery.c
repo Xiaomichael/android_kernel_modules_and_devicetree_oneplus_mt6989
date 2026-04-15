@@ -169,6 +169,88 @@ int battery_type_check(int *battery_type)
 
 	return battery_id;
 }
+
+#define BATTYPE_STR_MESSAGE_LEN 36
+#define OPLUS_SILICON_TYPE_TAG     "silicon"
+#define OPLUS_GRAPHITE_TYPE_TAG    "graphite"
+static DEFINE_MUTEX(battype_mutex);
+static int oplus_get_battype_str_cmdline(char *buf, size_t buf_size)
+{
+	char bat_type_str[BATTYPE_STR_MESSAGE_LEN];
+	struct device_node *of_chosen = NULL;
+	char *bat_type = NULL;
+	const char *cmd_line = NULL;
+	int prop_len = 0;
+
+	memset(bat_type_str, 0, BATTYPE_STR_MESSAGE_LEN);
+	if (!buf || buf_size == 0) {
+		bm_err("%s: invalid buffer\n", __func__);
+		return -EINVAL;
+	}
+
+	mutex_lock(&battype_mutex);
+
+	of_chosen = of_find_node_by_path("/chosen");
+	if (of_chosen) {
+		cmd_line = (char *)of_get_property(
+			of_chosen, "bat_type", &prop_len);
+		if (NULL == cmd_line || prop_len == 0) {
+			bm_err("%s: failed to get bat_type\n", __func__);
+			mutex_unlock(&battype_mutex);
+			return -ENODEV;
+		}
+		strncpy(bat_type_str, cmd_line, (prop_len >= BATTYPE_STR_MESSAGE_LEN) ? (BATTYPE_STR_MESSAGE_LEN - 1) : (prop_len));
+
+		bat_type = strnstr(bat_type_str, OPLUS_SILICON_TYPE_TAG, BATTYPE_STR_MESSAGE_LEN);
+		if (bat_type == NULL) {
+			/* check the graphite battery type again. */
+			bat_type = strnstr(bat_type_str, OPLUS_GRAPHITE_TYPE_TAG, BATTYPE_STR_MESSAGE_LEN);
+			if (bat_type == NULL) {
+				bm_err("get battery type is not supported!!!\n");
+				mutex_unlock(&battype_mutex);
+				return -ENOTSUPP;
+			}
+		}
+		strncpy(buf, bat_type, buf_size - 1);
+		buf[buf_size - 1] = 0;
+
+		bm_err("%s: bat_str=%s\n", __func__, buf);
+		mutex_unlock(&battype_mutex);
+		return 0;
+	} else {
+		bm_err("%s: failed to get /chosen \n", __func__);
+		mutex_unlock(&battype_mutex);
+		return -ENODEV;
+	}
+}
+
+static struct device_node *oplus_get_node_by_type(struct device_node *father_node)
+{
+	char bat_type_str[BATTYPE_STR_MESSAGE_LEN];
+	struct device_node *sub_node = NULL;
+	struct device_node *node = father_node;
+	if (father_node == NULL) {
+		return NULL;
+	}
+	if (oplus_get_battype_str_cmdline(bat_type_str, sizeof(bat_type_str)) == 0) {
+		sub_node = of_get_child_by_name(father_node, bat_type_str);
+		if (sub_node) {
+		bm_err("%s: will use sub_node[%s]\n", __func__, bat_type_str);
+			node = sub_node;
+		}
+	}
+	return node;
+}
+
+struct device_node *oplus_get_node_by_child(struct device_node *father_node)
+{
+	struct device_node *node = of_find_node_by_path("/soc/oplus_chg_core");
+	if (node == NULL)
+		return father_node;
+	if (!of_property_read_bool(node, "oplus,gauge_ic_by_child_node"))
+		return father_node;
+	return oplus_get_node_by_type(father_node);
+}
 #endif
 
 struct tag_bootmode {
@@ -5158,6 +5240,7 @@ int battery_init(struct platform_device *pdev)
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
 /*add for distinguish fuelgague and outlay-gague*/
+	pdev->dev.of_node = oplus_get_node_by_child(pdev->dev.of_node);
 	fg_read_dts_val(pdev->dev.of_node, "FUELGAGUE_APPLY", &(fuelgauge_apply), 1);
 	bm_err("%s, fuelgauge_apply:%d\n", __func__, fuelgauge_apply);
 

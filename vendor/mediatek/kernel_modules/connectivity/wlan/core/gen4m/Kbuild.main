@@ -2694,3 +2694,16 @@ ifeq ($(WMT_SUPPORT), y)
 else
     ccflags-y += -Wframe-larger-than=2048
 endif
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+ccflags-y += -DOPLUS_FEATURE_WIFI_SAP_ACCELERATE
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+OPLUS_SAP_ACCELERATE += oplus_sap_accelerate/oplus_sap_accelerate.o
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+$(MODULE_NAME)-objs += $(OPLUS_SAP_ACCELERATE)
+ccflags-y += -I$(KO_CODE_PATH)/oplus_sap_accelerate
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */

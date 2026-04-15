@@ -9,10 +9,17 @@
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
 #include <linux/of_gpio.h>
-#include <linux/slab.h>
 #include <soc/oplus/system/oplus_project.h>
 #include <linux/io.h>
 #include "stdbool.h"
+#include <linux/slab.h>
+#include <linux/of_platform.h>
+#include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/devinfo.h>
+
+
 
 #include "oplus_nfc.h"
 
@@ -29,6 +36,7 @@ struct id_entry {
 
 static char current_chipset[32];
 static bool support_nfc = false;
+static int nfc_id_gpio_value = -1;
 
 bool is_nfc_support(void)
 {
@@ -46,34 +54,34 @@ bool is_support_chip(chip_type chip)
 		return false;
 	}
 
-	switch(chip) {
-		case NQ310:
-			target_chipset = "NQ310|NQ330|PN557";
-			break;
-		case NQ330:
-			target_chipset = "NQ330";
-			break;
-		case SN100T:
-			target_chipset = "SN100T|PN560";
-			break;
-		case SN100F:
-			target_chipset = "SN100F";
-			break;
-		case SN110T:
-			target_chipset = "SN100T|SN110T";
-			break;
-		case ST21H:
-			target_chipset = "ST21H|ST54H";
-			break;
-		case ST54H:
-			target_chipset = "ST54H";
-			break;
-                case THN31:
-			target_chipset = "THN31";
-			break;
-		default:
-			target_chipset = "UNKNOWN";
-			break;
+	switch (chip) {
+	case NQ310:
+		target_chipset = "NQ310|NQ330|PN557";
+		break;
+	case NQ330:
+		target_chipset = "NQ330";
+		break;
+	case SN100T:
+		target_chipset = "SN100T|SN110T|SN220T|SN220E|SN220U|PN560|PN560DZ";
+		break;
+	case SN100F:
+		target_chipset = "SN100F";
+		break;
+	case SN110T:
+		target_chipset = "SN100T|SN110T";
+		break;
+	case ST21H:
+		target_chipset = "ST21H|ST54H";
+		break;
+	case ST54H:
+		target_chipset = "ST54H";
+		break;
+	case THN31:
+		target_chipset = "THN31";
+		break;
+	default:
+		target_chipset = "UNKNOWN";
+		break;
 	}
 
 	if (strstr(target_chipset, current_chipset) != NULL)
@@ -245,16 +253,138 @@ static int read_id_properties(struct device_node *np, u32 id_count, struct id_en
 
 static int get_gpio_value(struct device_node *np, int *gpio_value)
 {
-    int gpio_num = of_get_named_gpio(np, "id-gpio", 0);
+	int gpio_num = of_get_named_gpio(np, "id-gpio", 0);
+	if (!gpio_is_valid(gpio_num)) {
+		pr_err("id-gpio is not valid\n");
+		return -EINVAL;
+	}
 
-    if (!gpio_is_valid(gpio_num)) {
-        pr_err("%s, id-gpio is not valid\n", __func__);
-        return -EINVAL;
-    }
+	*gpio_value = gpio_get_value(gpio_num);
+	pr_err("%s, id gpio value is %d", __func__, *gpio_value);
+	return 0;
+}
 
-    *gpio_value = gpio_get_value(gpio_num);
-    pr_info("%s, id-gpio value is %d", __func__, *gpio_value);
-    return 0;
+static int set_gpio_state_and_read(struct pinctrl *pinctrl, struct pinctrl_state *state, int gpio_num, int *gpio_value)
+{
+	int ret = 0;
+
+	/*  Select pinctrl state */
+	ret = pinctrl_select_state(pinctrl, state);
+	if (ret) {
+		pr_err("Failed to select pinctrl state\n");
+		return ret;
+	}
+
+	/* Read GPIO value */
+	*gpio_value = gpio_get_value(gpio_num);
+	return 0;
+}
+
+static int get_gpio_value_three(struct device *dev, int *gpio_value)
+{
+	int ret = -1, default_ret = -1, value_down = -1, value_up = -1;
+	struct pinctrl *pinctrl = NULL;
+	struct pinctrl_state *default_state = NULL, *pullup_state = NULL, *pulldown_state = NULL;
+
+	int gpio_num = of_get_named_gpio(dev->of_node, "id-gpio", 0);
+
+	pr_info("%s, gpio_num = %d\n", __func__, gpio_num);
+
+	if (!gpio_is_valid(gpio_num)) {
+		pr_err("%s, id-gpio is not valid\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = gpio_request(gpio_num, "id-gpio");
+	if (ret < 0) {
+		pr_err("%s, failed to request id-gpio, error_code=%d\n", __func__, ret);
+		return ret;
+	}
+	pr_info("%s, id-gpio = %d\n", __func__, gpio_num);
+	ret = gpio_direction_input(gpio_num);
+	if (ret < 0) {
+		pr_err("%s, failed to set id-gpio direction to input, error_code=%d\n", __func__, ret);
+		goto free_gpio;
+	}
+
+	pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pinctrl)) {
+		pr_err("pinctrl init fail: %ld\n", PTR_ERR(pinctrl));
+		ret = PTR_ERR(pinctrl);
+		goto free_gpio;
+	}
+
+	default_state = pinctrl_lookup_state(pinctrl, "nfcid_default");
+	pullup_state = pinctrl_lookup_state(pinctrl, "nfcid_pullup");
+	pulldown_state = pinctrl_lookup_state(pinctrl, "nfcid_pulldown");
+	if (IS_ERR(default_state) || IS_ERR(pullup_state) || IS_ERR(pulldown_state)) {
+		pr_err("pinctrl state lookup fail: default_state=%ld, pullup_state=%ld, pulldown_state=%ld\n",
+		PTR_ERR(default_state), PTR_ERR(pullup_state), PTR_ERR(pulldown_state));
+
+		if (IS_ERR(default_state))
+			ret = PTR_ERR(default_state);
+		else if (IS_ERR(pullup_state))
+			ret = PTR_ERR(pullup_state);
+		else
+			ret = PTR_ERR(pulldown_state);
+
+		goto put_pinctrl;
+	}
+
+	/*  Read the GPIO value in the pull-down state  */
+	ret = set_gpio_state_and_read(pinctrl, pulldown_state, gpio_num, &value_down);
+	pr_info("%s, id-gpio value_down is %d", __func__, value_down);
+	if (ret) {
+		pr_err("Failed to read GPIO in pulldown state\n");
+		goto restore_default;
+	}
+
+	/* Read the GPIO value in pull-up state */
+	ret = set_gpio_state_and_read(pinctrl, pullup_state, gpio_num, &value_up);
+	pr_info("%s, id-gpio value_up is %d", __func__, value_up);
+	if (ret) {
+		pr_err("Failed to read GPIO in pullup state\n");
+		goto restore_default;
+	}
+
+	/* Determine the GPIO status based on the read value */
+	if (value_down == 0 && value_up == 1) {
+		pr_info("%s, High resistance state\n", __func__);
+		*gpio_value = 2; /* High resistance state */
+		pr_info("%s, id-gpio value is %d", __func__, *gpio_value);
+	} else if (value_down == 0 && value_up == 0) {
+		pr_info("%s, External pulldown state\n", __func__);
+		*gpio_value = 0; /* External pulldown state */
+		pr_info("%s, id-gpio value is %d", __func__, *gpio_value);
+	} else if (value_down == 1 && value_up == 1) {
+		pr_info("%s, External pullup state\n", __func__);
+		*gpio_value = 1; /* External pullup state */
+		pr_info("%s, id-gpio value is %d", __func__, *gpio_value);
+	} else {
+		pr_err("Unknown GPIO state: value_down = %d, value_up = %d\n", value_down, value_up);
+		ret = -1;
+		goto restore_default;
+	}
+
+	pr_info("%s, oplus_nfc final gpio_value = %d\n", __func__, *gpio_value);
+	ret = 0;
+
+restore_default:
+	/* Restore to default state */
+	default_ret = pinctrl_select_state(pinctrl, default_state);
+	if (default_ret) {
+		pr_err("Failed to select default pinctrl state: default_ret = %d\n", default_ret);
+	}
+
+put_pinctrl:
+	if (pinctrl) {
+		devm_pinctrl_put(pinctrl);
+	}
+
+free_gpio:
+	gpio_free(gpio_num);
+
+	return ret;
 }
 
 static int create_chipset_file_and_symlinks(struct id_entry entry)
@@ -341,78 +471,93 @@ static int mixed_nfc_probe(struct platform_device *pdev)
       goto free_id_entries;
     }
 
-    err = get_gpio_value(np, &gpio_value);
-    if (err)
-    {
-      pr_err("%s error:get_gpio_value failed", __func__);
-      goto free_id_entries;
-    }
+	/* Different functions according to the value of id_count */
+	pr_info("id_count: %u\n", id_count);
 
-    for (i = 0; i < id_count; i++) {
-        if (id_entries[i].key == gpio_value) {
-            err = create_chipset_file_and_symlinks(id_entries[i]);
-            if (err)
-            {
-              pr_err("%s error:create_chipset_file_and_symlinks failed", __func__);
-              goto free_id_entries;
-            }
-            found = true;
-            break;
-        }
-    }
+	switch (id_count) {
+	case 2:
+		err = get_gpio_value(np, &gpio_value);
+		if (err) {
+			pr_err("Failed to get GPIO value\n");
+			goto free_id_entries;
+		}
+		nfc_id_gpio_value = gpio_value;
+		break;
+	case 3:
+		err = get_gpio_value_three(&pdev->dev, &gpio_value);
+		if (err) {
+			pr_err("Failed to get GPIO value in three states\n");
+			goto free_id_entries;
+		}
+		nfc_id_gpio_value = gpio_value;
+		break;
+	default:
+		pr_err("Unexpected id_count value: %u\n", id_count);
+		err = -EINVAL;
+		goto free_id_entries;
+	}
 
-    if (!found) {
-        pr_err("%s, No matching key found for GPIO value\n", __func__);
-        err = -EINVAL;
-        goto free_id_entries;
-    }
-    pr_info("%s, mixed_nfc_probe success\n", __func__);
-    kfree(id_entries);
-    return 0;
+	for (i = 0; i < id_count; i++) {
+		if (id_entries[i].key == nfc_id_gpio_value) {
+			err = create_chipset_file_and_symlinks(id_entries[i]);
+			if (err) {
+				pr_err("%s error:create_chipset_file_and_symlinks failed", __func__);
+				goto free_id_entries;
+			}
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		pr_err("No matching key found for GPIO value\n");
+		err = -EINVAL;
+		goto free_id_entries;
+	}
+	pr_err("mixed_nfc_probe success\n");
+	kfree(id_entries);
+	return 0;
 
 free_id_entries:
-    kfree(id_entries);
-    return err;
+	kfree(id_entries);
+	return err;
 }
 
+int get_nfc_id(void)
+{
+        return nfc_id_gpio_value;
+}
+EXPORT_SYMBOL(get_nfc_id);
 
 static int oplus_nfc_probe(struct platform_device *pdev)
 {
-    struct device* dev;
-    uint32_t mixed_chipset;
+	struct device* dev;
+	uint32_t mixed_chipset;
 
-    pr_err("%s, enter", __func__);
-    dev = &pdev->dev;
-    if (!dev)
-    {
-        pr_err("%s, no device", __func__);
-        return -ENOENT;
-    }
+	pr_err("enter %s", __func__);
+	dev = &pdev->dev;
+	if (!dev) {
+		pr_err("%s, no device", __func__);
+		return -ENOENT;
+	}
 
-    if (of_property_read_u32(dev->of_node, MIXED_CHIPSET, &mixed_chipset))
-    {
-        pr_info("%s, read dts property mixed-chipset failed", __func__);
-        return single_nfc_probe(pdev);
-    }
-    else
-    {
-        if (1 == mixed_chipset)
-        {
-            pr_info("%s, the value of dts property mixed-chipset is 1(true)", __func__);
-            return mixed_nfc_probe(pdev);
-        }
-        else if(0 == mixed_chipset)
-        {
-            pr_info("%s, the value of dts property mixed-chipset is 0(false)", __func__);
-            return single_nfc_probe(pdev);
-        }
-        else
-        {
-            pr_err("%s, mixed-chipset's value is wrong,it is neither 1 nor 0", __func__);
-            return -ENOENT;
-        }
-    }
-    return 0;
+	if (of_property_read_u32(dev->of_node, MIXED_CHIPSET, &mixed_chipset)) {
+		pr_err("%s, of_property_read_u32(dev->of_node, MIXED_CHIPSET, &mixed_chipset) fail", __func__);
+		return single_nfc_probe(pdev);
+	}
+	else {
+		if (1 == mixed_chipset) {
+			pr_err("%s, the value of dts node:mixed-chipset is 1(true)", __func__);
+			return mixed_nfc_probe(pdev);
+		} else if (0 == mixed_chipset) {
+			pr_err("%s, the value of dts node:mixed-chipset is 0(false)", __func__);
+			return single_nfc_probe(pdev);
+		} else {
+			pr_err("%s, mixed-chipset's value is wrong,it is neither 1 nor 0,exit probe", __func__);
+			return -ENOENT;
+		}
+	}
+	return 0;
 }
 
 static int oplus_nfc_remove(struct platform_device *pdev)

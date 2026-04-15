@@ -543,6 +543,17 @@ int tcpci_notify_hvdcp_detect_dn(struct tcpc_device *tcpc, bool hvdcp_detect_dn)
 }
 EXPORT_SYMBOL(tcpci_notify_hvdcp_detect_dn);
 
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+/* add for cancel usb switch */
+bool tcpci_get_vooc_status(struct tcpc_device *tcpc)
+{
+	if (tcpc->ops->get_vooc_status)
+		return tcpc->ops->get_vooc_status(tcpc);
+	return false;
+}
+EXPORT_SYMBOL(tcpci_get_vooc_status);
+#endif
+
 #if IS_ENABLED(CONFIG_OPLUS_PD_SOURCECAP_UPDATE_SUPPORT)
 int tcpci_notify_sourcecap_done(struct tcpc_device *tcpc, struct power_caps *info)
 {

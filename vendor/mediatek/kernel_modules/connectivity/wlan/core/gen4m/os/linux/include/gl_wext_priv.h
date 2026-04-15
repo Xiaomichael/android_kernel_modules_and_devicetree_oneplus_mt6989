@@ -1049,6 +1049,18 @@ int priv_driver_set_pcie_speed(struct net_device *prNetDev,
 int priv_driver_set_6g_pwr_mode(struct net_device *prNetDev, char *pcCommand,
 			int i4TotalLen);
 #endif
+
+#ifdef OPLUS_FEATURE_WIFI_SAP_ACCELERATE
+int priv_driver_enable_oplus_sap_accelerate(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen);
+int priv_driver_disable_oplus_sap_accelerate(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen);
+int priv_driver_get_oplus_sap_accelerate_status(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen);
+int priv_driver_get_oplus_sap_acc_statistic_data(struct net_device *prNetDev,
+    char *pcCommand, int i4TotalLen);
+#endif /* OPLUS_FEATURE_WIFI_SAP_ACCELERATE */
+
 /*******************************************************************************
  *                              F U N C T I O N S
  *******************************************************************************

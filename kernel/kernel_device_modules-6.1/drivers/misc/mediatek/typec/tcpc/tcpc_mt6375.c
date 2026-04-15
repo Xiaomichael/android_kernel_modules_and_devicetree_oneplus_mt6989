@@ -292,6 +292,10 @@ struct mt6375_tcpc_data {
 	u16 did;
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	struct mt6375_debug_data debug_data;
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+/* add for cancel usb switch */
+	bool vooc_startup;
+#endif
 #endif /* OPLUS_FEATURE_CHG_BASIC */
 	bool vsc_status;
 	u8 short_cc;
@@ -1880,6 +1884,13 @@ static int mt6375_set_low_power_mode(struct tcpc_device *tcpc, bool en,
 		mt6375_alert_status_clear(tcpc, TCPC_REG_ALERT_RX_ALL_MASK);
 		mt6375_alert_status_clear(tcpc, TCPC_REG_ALERT_RX_ALL_MASK);
 #endif	/* CONFIG_USB_POWER_DELIVERY */
+		/*
+		 * LPWR_REG_EN will auto reset to 2'b00 while wakeup
+		 * So Set Low Power LDO to 2V when enabling low power mode
+		 */
+		ret = mt6375_write8(ddata, MT6375_REG_LPWRCTRL3, 0xD8);
+		if (ret < 0)
+			return ret;
 		data = MT6375_MSK_LPWR_EN;
 #if CONFIG_TYPEC_CAP_NORP_SRC
 		data |= MT6375_MSK_VBUSDET_EN;
@@ -1887,7 +1898,15 @@ static int mt6375_set_low_power_mode(struct tcpc_device *tcpc, bool en,
 	} else {
 		data = MT6375_MSK_VBUSDET_EN | MT6375_MSK_BMCIOOSC_EN;
 	}
-	return mt6375_write8(ddata, MT6375_REG_SYSCTRL2, data);
+	ret = mt6375_write8(ddata, MT6375_REG_SYSCTRL2, data);
+	/* Let CC pins re-toggle */
+	if (en && ret >= 0 &&
+	    (tcpc->typec_local_cc & TYPEC_CC_DRP)) {
+		udelay(32);
+		ret = mt6375_write8(ddata, TCPC_V10_REG_COMMAND,
+				    TCPM_CMD_LOOK_CONNECTION);
+	}
+	return ret;
 }
 
 static int mt6375_set_usb_dpdm_pull_low(struct tcpc_device *tcpc, bool enable)
@@ -1941,6 +1960,28 @@ static int mt6375_set_usb_dpdm_pull_low(struct tcpc_device *tcpc, bool enable)
 
 	return 0;
 }
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+/* add for cancel usb switch */
+static int mt6375_set_vooc_status(struct tcpc_device *tcpc, bool status)
+{
+	struct mt6375_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
+
+	MT6375_INFO(" status : %d\n", status);
+	ddata->vooc_startup = status;
+
+	return 0;
+}
+
+static bool mt6375_get_vooc_status(struct tcpc_device *tcpc)
+{
+	struct mt6375_tcpc_data *ddata = tcpc_get_dev_data(tcpc);
+
+	return ddata->vooc_startup;
+}
+#endif
+#endif
 
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 static int mt6375_set_msg_header(struct tcpc_device *tcpc, u8 power_role,
@@ -2535,6 +2576,12 @@ static struct tcpc_ops mt6375_tcpc_ops = {
 #endif
 	.set_low_power_mode = mt6375_set_low_power_mode,
 	.set_usb_dpdm_pull_low = mt6375_set_usb_dpdm_pull_low,
+#ifdef OPLUS_FEATURE_CHG_BASIC
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+	.set_vooc_status = mt6375_set_vooc_status,
+	.get_vooc_status = mt6375_get_vooc_status,
+#endif
+#endif
 
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 	.set_msg_header = mt6375_set_msg_header,
@@ -2567,33 +2614,15 @@ static struct tcpc_ops mt6375_tcpc_ops = {
 static irqreturn_t mt6375_pd_evt_handler(int irq, void *data)
 {
 	struct mt6375_tcpc_data *ddata = data;
-	u8 evt = 0;
-	int ret;
+	int ret = 0;
 
 	MT6375_DBGINFO("++\n");
-	disable_irq_nosync(irq);
 	pm_stay_awake(ddata->dev);
-
-	while (1) {
+	do {
 		tcpci_lock_typec(ddata->tcpc);
-		ret = tcpci_alert(ddata->tcpc, true);
+		ret = tcpci_alert(ddata->tcpc, false);
 		tcpci_unlock_typec(ddata->tcpc);
-		if (ret < 0)
-			break;
-
-		ret = mt6375_read8(ddata, 0x1df, &evt);
-		if (ret < 0)
-			break;
-		MT6375_DBGINFO("evt = %x\n", evt);
-		if (evt & 0x01) {
-			ret = mt6375_write8(ddata, 0x1df, 0x01);
-			if (ret < 0)
-				break;
-		} else
-			break;
-	}
-
-	enable_irq(irq);
+	} while (ret != -ENODATA);
 	pm_relax(ddata->dev);
 	MT6375_DBGINFO("--\n");
 
@@ -2877,7 +2906,11 @@ static int mt6375_tcpc_probe(struct platform_device *pdev)
 		dev_err(ddata->dev, "failed to get adc iio(%d)\n", ret);
 		return ret;
 	}
-
+#ifdef OPLUS_FEATURE_CHG_BASIC
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+	ddata->vooc_startup = false;
+#endif
+#endif
 	ret = mt6375_register_tcpcdev(ddata);
 	if (ret < 0) {
 		dev_err(ddata->dev, "failed to register tcpcdev(%d)\n", ret);

@@ -79,6 +79,12 @@ int tcpci_set_vbus_short_cc_en(struct tcpc_device *tcpc, bool cc1, bool cc2);
 int tcpci_notify_vbus_short_cc_status(struct tcpc_device *tcpc,
 				      bool vsc_status, bool short_cc);
 int tcpci_set_usb_dpdm_pull_low(struct tcpc_device *tcpc, bool enable);
+#ifdef OPLUS_FEATURE_CHG_BASIC
+#if IS_ENABLED(CONFIG_OPLUS_CANCEL_USB_SWITCH)
+/* add for cancel usb switch */
+bool tcpci_get_vooc_status(struct tcpc_device *tcpc);
+#endif
+#endif
 
 
 static inline int __tcpci_set_cc(struct tcpc_device *tcpc, int pull)

@@ -54,4 +54,5 @@ int nfc_i2c_dev_remove(struct i2c_client *client);
 int nfc_i2c_dev_suspend(struct device *device);
 int nfc_i2c_dev_resume(struct device *device);
 
+extern int get_nfc_id(void);
 #endif /* _I2C_DRV_H_ */

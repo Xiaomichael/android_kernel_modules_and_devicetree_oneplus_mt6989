@@ -17,7 +17,7 @@
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
-
+#include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/of_graph.h>
@@ -59,6 +59,8 @@ static u32 exit_finger_hbm_flag = 0;
 static bool aod_state = false;
 static bool exit_aod_show_hbm = false;
 static unsigned int osc_mipi_hopping_status = 0;
+static bool oplus_set_bl_need_delay = false;
+static unsigned long long oplus_vfp_timer = 0;
 
 #define MAX_NORMAL_BRIGHTNESS   3515
 #define LCM_BRIGHTNESS_TYPE 2
@@ -521,9 +523,19 @@ static int lcm_setbacklight_cmdq(void *dsi, dcs_write_gce cb, void *handle, unsi
 	char bl_tb0[] = {0x51, 0x00, 0x00};
 	char bl_tb1[] = {0x53, 0x20};
 	char post_backlight_on1[] = {0x29};
+	int timer_diff = 0;
 
 	if (!dsi || !cb) {
 		return -EINVAL;
+	}
+
+	if (oplus_set_bl_need_delay) {
+		timer_diff = (sched_clock() - oplus_vfp_timer) / 1000000;
+		if (timer_diff >= 0 && timer_diff < 17) {
+			usleep_range((17 - timer_diff) *1000, (17 - timer_diff) *1000 + 500);
+			pr_info("%s: set bl delay %d(ms)\n", __func__, 17 - timer_diff);
+		}
+		oplus_set_bl_need_delay = false;
 	}
 
 	if (exit_finger_hbm_flag == 1) exit_finger_hbm_flag ++;
@@ -949,6 +961,10 @@ static int mtk_panel_ext_param_set(struct drm_panel *panel,
 	struct drm_display_mode *m = get_mode_by_id(connector, mode);
 
 	m_vrefresh = drm_mode_vrefresh(m);
+	if (current_fps == 120 && m_vrefresh == 60) {
+		oplus_set_bl_need_delay = true;
+		oplus_vfp_timer = sched_clock();
+	}
 	pr_info("%s: mode=%d, vrefresh=%d\n", __func__, mode, drm_mode_vrefresh(m));
 
 	if (m_vrefresh == 60) {
